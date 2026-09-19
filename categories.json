@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "descobertas",
+      "name": "Bandas novas",
+      "enabled": true,
+      "priority": 10,
+      "keywords": [
+        "new band",
+        "debut",
+        "debut album",
+        "debut ep",
+        "introducing",
+        "newcomer",
+        "emerging",
+        "unsigned",
+        "estreia",
+        "banda nova",
+        "novo nome",
+        "primeiro álbum",
+        "primeiro ep"
+      ]
+    },
+    {
+      "id": "lancamentos",
+      "name": "Lançamentos",
+      "enabled": true,
+      "priority": 9,
+      "keywords": [
+        "new album",
+        "new single",
+        "new song",
+        "new ep",
+        "release",
+        "premiere",
+        "streaming",
+        "listen",
+        "album announced",
+        "single",
+        "álbum",
+        "novo disco",
+        "novo single",
+        "nova música",
+        "lançamento",
+        "estreia"
+      ]
+    },
+    {
+      "id": "reviews",
+      "name": "Reviews",
+      "enabled": true,
+      "priority": 8,
+      "keywords": [
+        "review",
+        "album review",
+        "ep review",
+        "track review",
+        "resenha",
+        "crítica"
+      ]
+    },
+    {
+      "id": "shows",
+      "name": "Shows & turnês",
+      "enabled": true,
+      "priority": 9,
+      "keywords": [
+        "tour",
+        "tour dates",
+        "concert",
+        "festival",
+        "tickets",
+        "live dates",
+        "show",
+        "turnê",
+        "ingressos",
+        "vem ao brasil",
+        "brasil",
+        "são paulo",
+        "campinas"
+      ]
+    },
+    {
+      "id": "ao-vivo",
+      "name": "Shows gravados",
+      "enabled": true,
+      "priority": 10,
+      "keywords": [
+        "full concert",
+        "full show",
+        "live at",
+        "live session",
+        "session",
+        "pro-shot",
+        "concert film",
+        "show completo",
+        "ao vivo",
+        "sessão ao vivo"
+      ]
+    },
+    {
+      "id": "entrevistas",
+      "name": "Entrevistas",
+      "enabled": true,
+      "priority": 5,
+      "keywords": [
+        "interview",
+        "conversation with",
+        "q&a",
+        "entrevista"
+      ]
+    },
+    {
+      "id": "noticias",
+      "name": "Notícias",
+      "enabled": true,
+      "priority": 3,
+      "keywords": [
+        "news",
+        "announces",
+        "announcement",
+        "confirmed",
+        "reveals",
+        "notícia",
+        "anuncia",
+        "confirmado",
+        "revela"
+      ]
+    }
+  ],
+  "genreTags": {
+    "stoner-rock": [
+      "stoner rock",
+      "stoner metal",
+      "fuzz rock",
+      "fuzz"
+    ],
+    "doom": [
+      "doom",
+      "doom metal",
+      "stoner doom"
+    ],
+    "heavy-psych": [
+      "heavy psych",
+      "heavy psychedelic",
+      "psychedelic rock",
+      "psych rock",
+      "psychedelic"
+    ],
+    "desert-rock": [
+      "desert rock",
+      "palm desert"
+    ],
+    "sludge": [
+      "sludge",
+      "sludge metal"
+    ],
+    "space-rock": [
+      "space rock",
+      "cosmic rock"
+    ],
+    "progressive": [
+      "progressive rock",
+      "prog rock",
+      "progressive metal"
+    ],
+    "occult-rock": [
+      "occult rock"
+    ],
+    "acid-rock": [
+      "acid rock"
+    ],
+    "grunge": [
+      "grunge"
+    ],
+    "nu-metal": [
+      "nu metal",
+      "nu-metal"
+    ]
+  },
+  "locationTags": {
+    "brasil": [
+      "brazil",
+      "brasil",
+      "brasileiro",
+      "brasileira"
+    ],
+    "sao-paulo": [
+      "são paulo",
+      "sao paulo"
+    ],
+    "campinas-regiao": [
+      "campinas",
+      "americana",
+      "santa bárbara d'oeste",
+      "santa barbara d'oeste",
+      "piracicaba",
+      "valinhos",
+      "águas de são pedro",
+      "aguas de sao pedro",
+      "são pedro",
+      "sao pedro"
+    ]
+  }
+}
