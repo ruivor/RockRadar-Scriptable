@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "the-obelisk",
+      "name": "The Obelisk",
+      "enabled": true,
+      "language": "en",
+      "type": "rss",
+      "url": "https://theobelisk.net/obelisk/feed/",
+      "site": "https://theobelisk.net/obelisk/",
+      "defaultTags": [
+        "stoner-rock",
+        "doom",
+        "heavy-psych",
+        "desert-rock"
+      ],
+      "weight": 10
+    },
+    {
+      "id": "doom-charts",
+      "name": "Doom Charts",
+      "enabled": true,
+      "language": "en",
+      "type": "rss",
+      "url": "https://doomcharts.com/feed/",
+      "site": "https://doomcharts.com/",
+      "defaultTags": [
+        "descobertas",
+        "doom",
+        "stoner-rock",
+        "heavy-psych",
+        "sludge"
+      ],
+      "weight": 10
+    },
+    {
+      "id": "angry-metal-guy",
+      "name": "Angry Metal Guy",
+      "enabled": true,
+      "language": "en",
+      "type": "rss",
+      "url": "https://www.angrymetalguy.com/feed/",
+      "site": "https://www.angrymetalguy.com/",
+      "defaultTags": [
+        "reviews",
+        "doom",
+        "stoner-metal",
+        "psychedelic"
+      ],
+      "weight": 8
+    },
+    {
+      "id": "sleeping-shaman",
+      "name": "The Sleeping Shaman",
+      "enabled": true,
+      "language": "en",
+      "type": "rss",
+      "url": "https://www.thesleepingshaman.com/feed/",
+      "site": "https://www.thesleepingshaman.com/",
+      "defaultTags": [
+        "stoner-rock",
+        "doom",
+        "sludge",
+        "reviews"
+      ],
+      "weight": 9
+    },
+    {
+      "id": "outlaws-of-the-sun",
+      "name": "Outlaws of the Sun",
+      "enabled": true,
+      "language": "en",
+      "type": "rss",
+      "url": "https://outlawsofthesun.blogspot.com/feeds/posts/default?alt=rss",
+      "site": "https://outlawsofthesun.blogspot.com/",
+      "defaultTags": [
+        "stoner-rock",
+        "doom",
+        "sludge",
+        "heavy-psych",
+        "reviews"
+      ],
+      "weight": 8
+    },
+    {
+      "id": "riff-vault",
+      "name": "Riff Vault",
+      "enabled": true,
+      "language": "en",
+      "type": "html-auto",
+      "url": "https://riff-vault.com/reviews/",
+      "site": "https://riff-vault.com/",
+      "defaultTags": [
+        "reviews",
+        "stoner-rock",
+        "doom",
+        "sludge",
+        "psychedelic"
+      ],
+      "weight": 8
+    },
+    {
+      "id": "roadie-crew",
+      "name": "Roadie Crew",
+      "enabled": true,
+      "language": "pt-BR",
+      "type": "rss",
+      "url": "https://roadiecrew.com/feed/",
+      "site": "https://roadiecrew.com/",
+      "defaultTags": [
+        "brasil",
+        "shows",
+        "rock",
+        "metal"
+      ],
+      "weight": 7
+    },
+    {
+      "id": "tmdqa",
+      "name": "Tenho Mais Discos Que Amigos!",
+      "enabled": true,
+      "language": "pt-BR",
+      "type": "rss",
+      "url": "https://www.tenhomaisdiscosqueamigos.com/feed/",
+      "site": "https://www.tenhomaisdiscosqueamigos.com/",
+      "defaultTags": [
+        "brasil",
+        "rock",
+        "psychedelic",
+        "lançamentos"
+      ],
+      "weight": 6
+    },
+    {
+      "id": "blabbermouth",
+      "name": "Blabbermouth",
+      "enabled": true,
+      "language": "en",
+      "type": "rss",
+      "url": "https://blabbermouth.net/feed",
+      "site": "https://blabbermouth.net/",
+      "defaultTags": [
+        "rock",
+        "metal",
+        "shows",
+        "lançamentos"
+      ],
+      "weight": 4
+    },
+    {
+      "id": "yt-kexp",
+      "name": "KEXP",
+      "enabled": true,
+      "language": "en",
+      "type": "youtube",
+      "url": "https://www.youtube.com/@kexp",
+      "defaultTags": [
+        "ao-vivo",
+        "shows-gravados",
+        "descobertas"
+      ],
+      "weight": 8
+    },
+    {
+      "id": "yt-audiotree",
+      "name": "Audiotree",
+      "enabled": true,
+      "language": "en",
+      "type": "youtube",
+      "url": "https://www.youtube.com/@audiotree",
+      "defaultTags": [
+        "ao-vivo",
+        "shows-gravados",
+        "descobertas"
+      ],
+      "weight": 8
+    },
+    {
+      "id": "yt-rockpalast",
+      "name": "Rockpalast",
+      "enabled": true,
+      "language": "en",
+      "type": "youtube",
+      "url": "https://www.youtube.com/@wdrrockpalast",
+      "defaultTags": [
+        "ao-vivo",
+        "shows-gravados",
+        "festival"
+      ],
+      "weight": 9
+    },
+    {
+      "id": "yt-roadburn",
+      "name": "Roadburn Festival",
+      "enabled": true,
+      "language": "en",
+      "type": "youtube",
+      "url": "https://www.youtube.com/@roadburnfestival",
+      "defaultTags": [
+        "festival",
+        "ao-vivo",
+        "shows-gravados",
+        "doom",
+        "heavy-psych"
+      ],
+      "weight": 10
+    },
+    {
+      "id": "yt-heavypsychsounds",
+      "name": "Heavy Psych Sounds Records",
+      "enabled": true,
+      "language": "en",
+      "type": "youtube",
+      "url": "https://www.youtube.com/@HeavyPsychSoundsRecords",
+      "defaultTags": [
+        "lançamentos",
+        "stoner-rock",
+        "doom",
+        "heavy-psych",
+        "descobertas"
+      ],
+      "weight": 9
+    },
+    {
+      "id": "ig-roadburn",
+      "name": "Roadburn Festival — Instagram",
+      "enabled": false,
+      "language": "en",
+      "type": "instagram",
+      "url": "https://www.instagram.com/roadburnfest/",
+      "defaultTags": [
+        "festival",
+        "shows",
+        "instagram"
+      ],
+      "weight": 9,
+      "experimental": true
+    },
+    {
+      "id": "ig-desertfest-london",
+      "name": "Desertfest London — Instagram",
+      "enabled": false,
+      "language": "en",
+      "type": "instagram",
+      "url": "https://www.instagram.com/desertfest_london/",
+      "defaultTags": [
+        "festival",
+        "shows",
+        "stoner-rock",
+        "instagram"
+      ],
+      "weight": 9,
+      "experimental": true
+    },
+    {
+      "id": "ig-heavypsychsounds",
+      "name": "Heavy Psych Sounds — Instagram",
+      "enabled": false,
+      "language": "en",
+      "type": "instagram",
+      "url": "https://www.instagram.com/heavypsychsounds_records/",
+      "defaultTags": [
+        "lançamentos",
+        "shows",
+        "descobertas",
+        "instagram"
+      ],
+      "weight": 8,
+      "experimental": true
+    }
+  ]
+}
