@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="2.1.0";
+const SYNC_VERSION="2.1.1";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -8,17 +8,20 @@ function syncLog(level,msg){try{const ld=fm.joinPath(dir,"logs");if(!fm.fileExis
 if(!fm.fileExists(dir))fm.createDirectory(dir,true);
 
 async function raw(name){
-  // raw.githubusercontent.com não consome a cota da GitHub Contents API.
-  // O parâmetro de versão evita receber conteúdo antigo de cache/CDN.
-  const stamp=Date.now();
-  const url=RAW_BASE+"/"+name.split("/").map(encodeURIComponent).join("/")+"?rr="+stamp;
-  const r=new Request(url);
-  r.timeoutInterval=20;
-  r.headers={"Cache-Control":"no-cache","Pragma":"no-cache"};
-  const body=await r.loadString();
-  const status=r.response&&r.response.statusCode?r.response.statusCode:0;
-  if(status<200||status>=300)throw new Error("GitHub RAW HTTP "+status+" em "+name);
-  if(!body)throw new Error("GitHub retornou conteúdo vazio para "+name);
+  // jsDelivr por SHA/commit evita tanto a cota da Contents API quanto cache stale do branch main.
+  // Primeiro resolvemos o SHA atual de main em uma única chamada; os arquivos usam URL imutável.
+  if(!globalThis.__rrCommit){
+    const r0=new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/commits/main");
+    r0.timeoutInterval=20;r0.headers={"User-Agent":"RockRadar-Scriptable/"+SYNC_VERSION,"Accept":"application/vnd.github+json"};
+    const d=await r0.loadJSON(),s=r0.response&&r0.response.statusCode?r0.response.statusCode:0;
+    if(s<200||s>=300||!d.sha)throw new Error("GitHub commit HTTP "+s);
+    globalThis.__rrCommit=d.sha;
+  }
+  const url="https://cdn.jsdelivr.net/gh/ruivor/RockRadar-Scriptable@"+globalThis.__rrCommit+"/"+name.split("/").map(encodeURIComponent).join("/");
+  const r=new Request(url);r.timeoutInterval=20;
+  const body=await r.loadString(),status=r.response&&r.response.statusCode?r.response.statusCode:0;
+  if(status<200||status>=300)throw new Error("CDN HTTP "+status+" em "+name);
+  if(!body)throw new Error("Conteúdo vazio em "+name);
   return body;
 }
 
