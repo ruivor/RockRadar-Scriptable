@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.10.1"
+const RADAR_VERSION = "2.10.2"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -18,25 +18,21 @@ const fm = FileManager.iCloud()
 const base = fm.joinPath(fm.documentsDirectory(), "RockRadar")
 if (!fm.fileExists(base)) fm.createDirectory(base, true)
 
-// Auto-reparo do sincronizador: usa resposta RAW da API do GitHub, sem Base64/CDN.
+// Auto-reparo do sincronizador: baixa o Sync via RAW, sem usar a GitHub Contents API.
 try {
   const syncPath = fm.joinPath(fm.documentsDirectory(), "RockRadar Sync.js")
   const localSync = fm.fileExists(syncPath) ? fm.readString(syncPath) : ""
   const localSyncVersion = localSync.match(/const SYNC_VERSION=["']([^"']+)/)?.[1] || "0"
-  if (localSyncVersion !== "2.0.4") {
-    const req = new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/RockRadar%20Sync.js?ref=main")
+  if (localSyncVersion !== "2.1.0") {
+    const req = new Request("https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main/RockRadar%20Sync.js?rr="+Date.now())
     req.timeoutInterval = 15
-    req.headers = {
-      "User-Agent":"RockRadar-Scriptable/"+RADAR_VERSION,
-      "Accept":"application/vnd.github.raw+json",
-      "Cache-Control":"no-cache"
-    }
+    req.headers = {"Cache-Control":"no-cache","Pragma":"no-cache"}
     const fresh = await req.loadString()
     const status = req.response && req.response.statusCode ? req.response.statusCode : 0
-    if (status >= 200 && status < 300 && fresh.includes('const SYNC_VERSION="2.0.4"')) {
+    if (status >= 200 && status < 300 && fresh.includes('const SYNC_VERSION="2.1.0"')) {
       fm.writeString(syncPath, fresh)
       if (fm.readString(syncPath) !== fresh) throw new Error("Falha ao verificar Sync gravado")
-      log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.0.4"})
+      log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.1.0"})
     } else {
       throw new Error("Sync remoto inválido; HTTP "+status)
     }
