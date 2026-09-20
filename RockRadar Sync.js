@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="1.6.5";
+const SYNC_VERSION="1.6.6";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","RockRadar Sync.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -23,7 +23,8 @@ async function raw(name){
 
 let manifest={rockRadar:"desconhecida",sync:"desconhecida"};
 try{
-  manifest=JSON.parse(await raw("version.json"));
+  const manifestText=await raw("version.json");
+  manifest=JSON.parse(manifestText.replace(/\\n\\s*$/,"").trim());
   syncLog("INFO","Manifesto remoto: "+JSON.stringify(manifest)+" via GitHub raw");
 }catch(e){
   syncLog("ERROR","Falha ao ler version.json: "+e);
