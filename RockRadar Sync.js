@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="1.6.8";
+const SYNC_VERSION="1.6.9";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","RockRadar Sync.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -63,7 +63,7 @@ let localSpotify="desconhecida";
 try{
   const sp=fm.readString(fm.joinPath(docs,"RockRadar Spotify.js"));
   const sm=sp.match(/const SPOTIFY_VERSION\\s*=\\s*["']([^"']+)/);
-  localSpotify=sm&&sm[1]?sm[1]:"desconhecida";
+  if(sm) localSpotify=sm[1];
 }catch{}
 const matched=localRadar===String(manifest.rockRadar);
 const spotifyMatched=!manifest.spotify||localSpotify===String(manifest.spotify);
