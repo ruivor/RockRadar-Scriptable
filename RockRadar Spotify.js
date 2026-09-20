@@ -1,5 +1,5 @@
 // RockRadar Spotify.js
-// OAuth Spotify Authorization Code + PKCE. Segredos/tokens ficam somente no Keychain do iPhone.
+// OAuth Spotify Authorization Code + PKCE. Segredos/tokens ficam somente no Keychain do iPhone.\nconst SPOTIFY_VERSION="1.0.0";
 let logger=null;
 try{logger=importModule("logger").createLogger("RockRadar Spotify.js")}catch{}
 function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[level.toLowerCase()](msg,meta)}catch{} try{console.log("["+level+"] "+msg+(meta?" "+JSON.stringify(meta):""))}catch{}}
