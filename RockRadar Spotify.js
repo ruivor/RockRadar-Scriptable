@@ -14,8 +14,8 @@ async function sha256(data){
   slog("INFO","PKCE: iniciando SHA-256");
   const w=new WebView();
   const bytes=Array.from(data.getBytes());
-  await w.loadHTML("<html><body></body></html>");
-  const script="(async()=>{try{const b=new Uint8Array("+JSON.stringify(bytes)+");const h=await crypto.subtle.digest('SHA-256',b);const a=Array.from(new Uint8Array(h));completion(JSON.stringify({ok:true,bytes:a}));}catch(e){completion(JSON.stringify({ok:false,error:String(e)}));}})()";
+  await w.loadHTML("<!doctype html><html><body></body></html>");
+  const script="const b=new Uint8Array("+JSON.stringify(bytes)+");crypto.subtle.digest('SHA-256',b).then(function(h){const a=Array.from(new Uint8Array(h));completion(JSON.stringify({ok:true,bytes:a}));}).catch(function(e){completion(JSON.stringify({ok:false,error:String(e)}));});";
   let result;
   try{result=await w.evaluateJavaScript(script,true)}catch(e){slog("ERROR","PKCE: WebView SHA-256 falhou",safeErr(e));throw e}
   slog("INFO","PKCE: retorno SHA-256 recebido",{type:typeof result,length:String(result||"").length});
@@ -60,7 +60,7 @@ async function access(){
 async function api(path,method="GET",body=null){
  const t=await access();if(!t)throw new Error("NOT_AUTH");
  const r=new Request("https://api.spotify.com/v1"+path);r.method=method;r.headers={Authorization:"Bearer "+t,"Content-Type":"application/json"};
- if(body!==null)r.body=JSON.stringify(body);const j=await r.loadJSON();if(r.response.statusCode>=400)throw new Error(j.error?.message||"Spotify HTTP "+r.response.statusCode);return j;
+ if(body!==null)r.body=JSON.stringify(body);const j=await r.loadJSON();if(r.response.statusCode>=400)throw new Error((j.error&&j.error.message)||"Spotify HTTP "+r.response.statusCode);return j;
 }
 async function playlist(){
  if(Keychain.contains(K.playlist))return Keychain.get(K.playlist);
@@ -68,7 +68,7 @@ async function playlist(){
  Keychain.set(K.playlist,p.id);return p.id;
 }
 async function addDiscovery(query){
- const s=await api("/search?"+qs({q:query,type:"track",limit:"1"}));const tr=s.tracks?.items?.[0];if(!tr)throw new Error("Nenhuma música encontrada para "+query);
+ const s=await api("/search?"+qs({q:query,type:"track",limit:"1"}));const tr=s.tracks&&s.tracks.items&&s.tracks.items[0];if(!tr)throw new Error("Nenhuma música encontrada para "+query);
  const id=await playlist();await api("/playlists/"+id+"/tracks","POST",{uris:[tr.uri]});return tr;
 }
 const q=args.queryParameters||{};
