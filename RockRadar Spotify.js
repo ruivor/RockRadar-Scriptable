@@ -1,6 +1,6 @@
 // RockRadar Spotify.js
 // OAuth Spotify Authorization Code + PKCE. Segredos/tokens ficam somente no Keychain do iPhone.
-const SPOTIFY_VERSION="1.1.0";
+const SPOTIFY_VERSION="1.1.1";
 let logger=null;
 try{logger=importModule("logger").createLogger("RockRadar Spotify.js")}catch{}
 function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[level.toLowerCase()](msg,meta)}catch{} try{console.log("["+level+"] "+msg+(meta?" "+JSON.stringify(meta):""))}catch{}}
@@ -127,7 +127,7 @@ async function addDiscovery(artist,title){
 const q=args.queryParameters||{};
 try{
  if(await callback(q)){const a=new Alert();a.title="Spotify conectado";a.message="Rock Radar já pode usar sua playlist privada de descobertas.";a.addAction("OK");await a.presentAlert();}
- else if(q.action==="add"&&q.q){let t=await access();if(!t){await beginAuth()}else{const result=await addDiscovery(q.artist||"",q.title||q.q);const tr=result.track;const a=new Alert();a.title=result.duplicate?"Já está na playlist":"Adicionado às Descobertas";a.message=(tr.artists||[]).map(x=>x.name).join(", ")+" — "+tr.name;a.addAction("OK");await a.presentAlert();}}
+ else if(q.action==="add"&&(q.q||q.title||q.artist)){let t=await access();if(!t){await beginAuth()}else{const result=await addDiscovery(q.artist||"",q.title||q.q||"");const tr=result.track;const a=new Alert();a.title=result.duplicate?"Já está na playlist":"Adicionado às Descobertas";a.message=(tr.artists||[]).map(x=>x.name).join(", ")+" — "+tr.name;a.addAction("OK");await a.presentAlert();}}
  else if(!(await access())) await beginAuth();
  else {const id=await playlist();const a=new Alert();a.title="Rock Radar Spotify";a.message="Conectado. Playlist Rock Radar — Descobertas pronta.\n\nID: "+id;a.addAction("OK");await a.presentAlert();}
 }catch(e){slog("ERROR","Falha no Spotify",safeErr(e));const a=new Alert();a.title="Rock Radar Spotify";a.message=String(e).includes("NOT_AUTH")?"É preciso conectar sua conta Spotify.":String(e);a.addAction("OK");await a.presentAlert();}
