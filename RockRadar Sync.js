@@ -1,7 +1,7 @@
 // RockRadar Sync.js
 // Este sync usa o raw do GitHub e funciona sem token quando o repositório é PÚBLICO.
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
-const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js"];
+const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Sync.js"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
 function syncLog(level,msg){try{const ld=fm.joinPath(dir,"logs");if(!fm.fileExists(ld))fm.createDirectory(ld,true);const lp=fm.joinPath(ld,"rockradar.log");let s=fm.fileExists(lp)?fm.readString(lp):"";s+=`[${new Date().toISOString()}] [${level}] [RockRadar Sync.js] ${msg}\n`;fm.writeString(lp,s.slice(-120000))}catch{}}
 if(!fm.fileExists(dir))fm.createDirectory(dir,true);
