@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.5.0"
+const RADAR_VERSION = "2.6.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -291,6 +291,7 @@ async function collect(s) {
 
 // Ações chamadas pela própria WebView.
 const qp = args.queryParameters || {}
+const refreshRequested = qp.action === "refresh"
 if (qp.action && qp.k) {
   const decodedKey = decodeURIComponent(qp.k)
   if (qp.action === "star") {
@@ -316,21 +317,26 @@ if (qp.action && qp.k) {
 }
 
 let fresh = []
-for (const s of cfg.sources || []) fresh.push(...await collect(s))
+if (refreshRequested || !(old.items || []).length) {
+  log.info(refreshRequested ? "Atualização manual iniciada" : "Cache vazio; primeira coleta iniciada")
+  for (const s of cfg.sources || []) fresh.push(...await collect(s))
 
-// Para artigos, tenta obter a imagem social em alta resolução da página original.
-const enrichCandidates = fresh
-  .filter(i => i.sourceType !== "youtube" && i.url && /^https?:/i.test(i.url))
-  .sort((a,b)=>(b.score||0)-(a.score||0))
-  .slice(0,36)
-for (const it of enrichCandidates) {
-  try {
-    const html = await get(it.url)
-    const hi = pageImage(html)
-    if (hi) it.image = hi
-  } catch(e) {
-    log.warn("Falha ao buscar imagem da matéria", {url:it.url, erro:String(e)})
+  // Só durante atualização manual buscamos imagens em alta resolução.
+  const enrichCandidates = fresh
+    .filter(i => i.sourceType !== "youtube" && i.url && /^https?:/i.test(i.url))
+    .sort((a,b)=>(b.score||0)-(a.score||0))
+    .slice(0,36)
+  for (const it of enrichCandidates) {
+    try {
+      const html = await get(it.url)
+      const hi = pageImage(html)
+      if (hi) it.image = hi
+    } catch(e) {
+      log.warn("Falha ao buscar imagem da matéria", {url:it.url, erro:String(e)})
+    }
   }
+} else {
+  log.info("Abrindo diretamente do cache", {itens:(old.items||[]).length, atualizadoEm:old.updatedAt||null})
 }
 
 const map = new Map()
@@ -378,8 +384,11 @@ const personalItems = items
 
 const personalKeys = new Set(personalItems.map(key))
 
-save("cache.json", {updatedAt:new Date().toISOString(), items})
-log.info("Coleta concluída", {itens:items.length, fontes:(cfg.sources||[]).filter(s=>s.enabled!==false).length})
+const cacheUpdatedAt = (refreshRequested || !(old.items || []).length)
+  ? new Date().toISOString()
+  : (old.updatedAt || new Date().toISOString())
+save("cache.json", {updatedAt:cacheUpdatedAt, items})
+log.info(refreshRequested ? "Atualização concluída" : "Cache carregado", {itens:items.length, fontes:(cfg.sources||[]).filter(s=>s.enabled!==false).length})
 
 const catName = id => (cats.categories || []).find(c => c.id === id)?.name || id
 const enabledCats = (cats.categories || []).filter(c => c.enabled !== false)
@@ -458,6 +467,19 @@ const totalUnread = items.filter(i => !i.isRead).length
 const totalStarred = items.filter(i => i.isStarred).length
 const personalCount = personalItems.length
 
+const refreshURL = scriptURL({action:"refresh"})
+function updatedLabel(iso) {
+  if (!iso) return "Nunca atualizado"
+  const d = new Date(iso), ms = Date.now()-d.getTime()
+  const min = Math.max(0, Math.floor(ms/60000))
+  if (min < 1) return "Atualizado agora"
+  if (min < 60) return "Atualizado há " + min + " min"
+  const h = Math.floor(min/60)
+  if (h < 24) return "Atualizado há " + h + "h"
+  const days = Math.floor(h/24)
+  return "Atualizado há " + days + (days===1 ? " dia" : " dias")
+}
+
 const chips = [
   {id:"personal", name:"Para mim", count:personalCount},
   ...enabledCats.map(c => ({id:c.id, name:c.name, count:items.filter(i => i.categories.includes(c.id)).length})),
@@ -495,6 +517,7 @@ body{padding-bottom:42px}
 h1{font-size:30px;line-height:1;margin:5px 0 0;font-weight:850;letter-spacing:-1.2px}\n.brand-version{margin-top:7px;font-size:10px;letter-spacing:1.2px;color:#6f6f77;font-weight:650}
 .stats{text-align:right;color:var(--muted);font-size:12px;line-height:1.4}
 .stats strong{color:var(--text)}
+.refresh{display:inline-block;margin-top:6px;color:var(--accent);text-decoration:none;font-size:10px;font-weight:800;letter-spacing:.7px;padding:5px 8px;border:1px solid rgba(240,162,26,.3);border-radius:999px;background:rgba(240,162,26,.08)}
 .chips{
   display:flex;gap:8px;overflow-x:auto;padding:13px 0 2px;
   scrollbar-width:none;-webkit-overflow-scrolling:touch
@@ -547,9 +570,9 @@ h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spac
   <div class="brand-row">
     <div>
       <div class="eyebrow">Heavy underground feed</div>
-      <h1>ROCK RADAR</h1>\n      <div class="brand-version">VERSÃO ${RADAR_VERSION}</div>
+      <h1>ROCK RADAR</h1>\n      <div class="brand-version">VERSÃO ${RADAR_VERSION} · ${esc(updatedLabel(cacheUpdatedAt))}</div>
     </div>
-    <div class="stats"><strong>${totalUnread}</strong> não lidos<br>${items.length} no radar</div>
+    <div class="stats"><strong>${totalUnread}</strong> não lidos<br>${items.length} no radar<br><a class="refresh" href="${esc(refreshURL)}">↻ ATUALIZAR</a></div>
   </div>
   <div class="chips">
     ${chips.map((c,i)=>`<button class="chip ${i===0?"active":""}" data-filter="${esc(c.id)}">${esc(c.name)} <span>${c.count}</span></button>`).join("")}
