@@ -1,5 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
+const RADAR_VERSION = "2.3.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -66,13 +67,30 @@ function decodeEntities(s) {
 const clean = s => {
   let out = String(s || "")
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+
+  // Decodifica primeiro para transformar &lt;div&gt; em <div>.
+  out = decodeEntities(out)
+  out = out
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<img\b[^>]*>/gi, " ")
+    .replace(/<a\b[^>]*>/gi, " ")
+    .replace(/<\/a>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+
+  // Segunda rodada cobre feeds duplamente codificados.
   out = decodeEntities(out)
   out = out
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
-  out = decodeEntities(out)
-  return out.replace(/\s+/g, " ").trim()
+
+  // Última proteção: não exibir markup residual como texto no card.
+  out = out
+    .replace(/&lt;[^&]{0,500}?&gt;/gi, " ")
+    .replace(/(?:^|\s)(?:href|src|style|class)=["'][^"']*["']/gi, " ")
+
+  return decodeEntities(out).replace(/\s+/g, " ").trim()
 }
 
 const key = i => `${i.sourceId}|${i.url || i.title}`.toLowerCase()
@@ -96,7 +114,7 @@ async function get(url) {
 
 function tag(block, names) {
   for (const n of names) {
-    const m = block.match(new RegExp(`<${n}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/${n}>`, "i"))
+    const m = block.match(new RegExp(`<${n}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${n}>`, "i"))
     if (m) return clean(m[1])
   }
   return ""
@@ -256,6 +274,8 @@ let items = [...map.values()]
   .filter(i => !i.date || new Date(i.date) >= cutoff)
   .map(i => ({
     ...i,
+    title:clean(i.title || ""),
+    summary:clean(i.summary || "").slice(0, 500),
     isRead:(state.read || []).includes(key(i)),
     isStarred:(state.starred || []).includes(key(i))
   }))
@@ -437,6 +457,7 @@ h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spac
 .star{font-size:25px;line-height:1;text-decoration:none;color:var(--accent)}
 .empty{text-align:center;color:var(--muted);padding:70px 30px}
 .footer{text-align:center;color:#585860;font-size:10px;padding:20px}
+.version{position:fixed;right:10px;bottom:8px;z-index:30;font-size:9px;letter-spacing:.4px;color:#55555d;background:rgba(11,11,12,.72);padding:4px 6px;border-radius:6px;backdrop-filter:blur(8px)}
 </style>
 </head>
 <body>
@@ -461,6 +482,7 @@ h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spac
   <div class="empty" id="empty" style="display:none">Nada nessa categoria ainda.</div>
 </main>
 <div class="footer">Rock Radar · dados coletados das fontes configuradas</div>
+<div class="version">v${RADAR_VERSION}</div>
 
 <script>
 const chips=[...document.querySelectorAll('.chip')]
