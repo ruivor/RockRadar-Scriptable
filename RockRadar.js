@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.10.0"
+const RADAR_VERSION = "2.10.1"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -442,6 +442,10 @@ function scriptURL(params) {
 
 function primaryArtistFromTitle(title) {
   const t=String(title||"").trim()
+  const interview=t.match(/^(?:an?\s+)?interview\s+with\s+.+?\b(?:metallers?|rockers?|band|artists?|musicians?)\s+([A-Z0-9][A-Z0-9 &'’.+-]{1,60})$/i)
+  if(interview)return interview[1].trim()
+  const meet=t.match(/^(?:introducing|meet|interview(?:ing)?|spotlight(?:\s+on)?)\s*[:\-–—]?\s*([A-Z0-9][A-Z0-9 &'’.+-]{1,60})$/i)
+  if(meet)return meet[1].trim()
   const patterns=[
     /^([^:–—-]{2,60})\s+(?:premiere|premieres|release|releases|announce|announces|share|shares|unveil|unveils|debut|debuts)\b/i,
     /^(.+?)\s*[-–—:]\s*(.+?)(?:\s*[\[(](?:album\s+)?review[\])]\s*)?$/i
