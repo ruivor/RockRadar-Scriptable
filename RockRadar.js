@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.11.4"
+const RADAR_VERSION = "2.11.5"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -320,7 +320,7 @@ const qp = args.queryParameters || {}
 const refreshRequested = qp.action === "refresh"
 if(qp.action==="reader"&&qp.url){
   try{await showReader(decodeURIComponent(qp.url),decodeURIComponent(qp.title||""),qp.translate==="1")}
-  catch(e){log.warn("Falha no leitor/tradução",{erro:String(e)});const a=new Alert();a.title="Tradução indisponível";a.message="Não consegui traduzir esta matéria agora.";a.addAction("OK");await a.presentAlert()}
+  catch(e){const detail={erro:String(e),message:e&&e.message||"",stack:e&&e.stack||"",url:decodeURIComponent(qp.url||"")};log.error("Falha no leitor/tradução",detail);const a=new Alert();a.title="Tradução indisponível";a.message="Não consegui traduzir esta matéria agora.\n\nErro: "+(detail.message||detail.erro);a.addAction("OK");await a.presentAlert()}
   Script.complete();return
 }
 if (qp.action && qp.k) {
