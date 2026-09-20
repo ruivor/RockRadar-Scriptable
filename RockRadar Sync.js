@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="1.6.4";
+const SYNC_VERSION="1.6.5";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","RockRadar Sync.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -35,6 +35,7 @@ for(const name of files){
   try{
     const body=name==="version.json"?JSON.stringify(manifest,null,2):await raw(name);
     const dest=name.endsWith(".json")?fm.joinPath(dir,name):fm.joinPath(docs,name);
+    if(name==="RockRadar Spotify.js" && manifest.spotify && body.indexOf('const SPOTIFY_VERSION="'+manifest.spotify+'"')<0) throw new Error("Spotify baixado não corresponde à v"+manifest.spotify);
     if(name==="RockRadar.js" && !body.includes('const RADAR_VERSION = "'+manifest.rockRadar+'"')){
       const got=body.match(/const RADAR_VERSION\s*=\s*["']([^"']+)/)?.[1]||"desconhecida";
       throw new Error("GitHub API retornou RockRadar v"+got+", mas o manifesto pede v"+manifest.rockRadar);
@@ -56,13 +57,20 @@ try{
   localRadar=radar.match(/const RADAR_VERSION\s*=\s*["']([^"']+)/)?.[1]||"desconhecida";
 }catch{}
 
+let localSpotify="desconhecida";
+try{
+  const sp=fm.readString(fm.joinPath(docs,"RockRadar Spotify.js"));
+  const sm=sp.match(/const SPOTIFY_VERSION\\s*=\\s*["']([^"']+)/);
+  localSpotify=sm&&sm[1]?sm[1]:"desconhecida";
+}catch{}
 const matched=localRadar===String(manifest.rockRadar);
+const spotifyMatched=!manifest.spotify||localSpotify===String(manifest.spotify);
 syncLog(matched?"INFO":"ERROR","Versão local "+localRadar+" / remota "+manifest.rockRadar);
 const a=new Alert();
 a.title="Rock Radar Sync v"+SYNC_VERSION;
 a.message=(err.length?`${ok} atualizados. Falhas:\n${err.join("\n")}\n\n`:`${ok} arquivos atualizados.\n\n`)+
   `GitHub: v${manifest.rockRadar}\niPhone: v${localRadar}\n`+
-  (matched?"✓ Versões conferem":"⚠ Versões NÃO conferem");
+  (matched?"✓ Radar confere":"⚠ Radar NÃO confere")+"\nSpotify: v"+localSpotify+" / v"+(manifest.spotify||"n/a")+"\n"+(spotifyMatched?"✓ Spotify confere":"⚠ Spotify NÃO confere");
 a.addAction("OK");
 await a.presentAlert();
 Script.complete();
