@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="2.0.4";
+const SYNC_VERSION="2.1.0";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -8,18 +8,16 @@ function syncLog(level,msg){try{const ld=fm.joinPath(dir,"logs");if(!fm.fileExis
 if(!fm.fileExists(dir))fm.createDirectory(dir,true);
 
 async function raw(name){
-  // GitHub Contents API em modo raw: evita CDN e elimina Base64.
-  const url="https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/"+name.split("/").map(encodeURIComponent).join("/")+"?ref=main";
+  // raw.githubusercontent.com não consome a cota da GitHub Contents API.
+  // O parâmetro de versão evita receber conteúdo antigo de cache/CDN.
+  const stamp=Date.now();
+  const url=RAW_BASE+"/"+name.split("/").map(encodeURIComponent).join("/")+"?rr="+stamp;
   const r=new Request(url);
   r.timeoutInterval=20;
-  r.headers={
-    "User-Agent":"RockRadar-Scriptable/"+SYNC_VERSION,
-    "Accept":"application/vnd.github.raw+json",
-    "Cache-Control":"no-cache"
-  };
+  r.headers={"Cache-Control":"no-cache","Pragma":"no-cache"};
   const body=await r.loadString();
   const status=r.response&&r.response.statusCode?r.response.statusCode:0;
-  if(status<200||status>=300)throw new Error("GitHub API HTTP "+status+" em "+name);
+  if(status<200||status>=300)throw new Error("GitHub RAW HTTP "+status+" em "+name);
   if(!body)throw new Error("GitHub retornou conteúdo vazio para "+name);
   return body;
 }
@@ -29,7 +27,7 @@ try{
   const manifestText=await raw("version.json");
   const cleaned=manifestText.trim().replace(/\\\\n+$/,"").trim();
   manifest=JSON.parse(cleaned);
-  syncLog("INFO","Manifesto remoto: "+JSON.stringify(manifest)+" via GitHub CDN");
+  syncLog("INFO","Manifesto remoto: "+JSON.stringify(manifest)+" via GitHub RAW");
 }catch(e){
   syncLog("ERROR","Falha ao ler version.json: "+e);
   const a=new Alert();a.title="Rock Radar Sync v"+SYNC_VERSION;a.message="Não consegui consultar version.json. Nada foi atualizado para evitar mistura de versões.\n\n"+e;a.addAction("OK");await a.presentAlert();Script.complete();return;
