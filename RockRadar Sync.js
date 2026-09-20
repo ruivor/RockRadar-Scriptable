@@ -18,7 +18,10 @@ async function raw(name){
   if(status<200||status>=300)throw new Error("GitHub API HTTP "+status);
   const obj=JSON.parse(apiBody);
   if(!obj.content)throw new Error("GitHub API sem conteúdo para "+name);
-  return Data.fromBase64String(obj.content.replace(/\\n/g,"")).toRawString();
+  const b64=String(obj.content).replace(/\\s/g,"");
+  const decoded=Data.fromBase64String(b64);
+  if(!decoded)throw new Error("Falha ao decodificar Base64 de "+name);
+  return decoded.toRawString();
 }
 
 let manifest={rockRadar:"desconhecida",sync:"desconhecida"};
