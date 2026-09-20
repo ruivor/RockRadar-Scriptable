@@ -10,7 +10,7 @@ function qs(o){return Object.entries(o).map(([k,v])=>encodeURIComponent(k)+"="+e
 async function beginAuth(){
  const verifier=randomVerifier(), state=randomVerifier().slice(0,32);
  Keychain.set(K.verifier,verifier);Keychain.set(K.state,state);
- const challenge=b64url(Crypto.SHA256(Data.fromString(verifier)));
+ const challenge=b64url(await sha256(Data.fromString(verifier)));
  const u="https://accounts.spotify.com/authorize?"+qs({client_id:CLIENT_ID,response_type:"code",redirect_uri:REDIRECT_URI,scope:SCOPE,code_challenge_method:"S256",code_challenge:challenge,state});
  Safari.open(u);
 }
