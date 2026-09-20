@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="1.6.3";
+const SYNC_VERSION="1.6.4";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","RockRadar Sync.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -10,10 +10,10 @@ if(!fm.fileExists(dir))fm.createDirectory(dir,true);
 async function raw(name){
   // Usa raw.githubusercontent.com para não consumir o limite de 60 req/h da API REST pública.
   // O parâmetro cb evita reaproveitar uma resposta antiga do CDN.
-  const url=RAW_BASE+"/"+name.split("/").map(encodeURIComponent).join("/")+"?cb="+Date.now();
+  const url=RAW_BASE+"/"+name.split("/").map(encodeURIComponent).join("/")+"?v="+encodeURIComponent(SYNC_VERSION)+"&t="+Date.now();
   const r=new Request(url);
   r.timeoutInterval=20;
-  r.headers={"User-Agent":"RockRadar-Scriptable/"+SYNC_VERSION,"Cache-Control":"no-cache","Pragma":"no-cache"};
+  r.headers={"User-Agent":"RockRadar-Scriptable/"+SYNC_VERSION,"Cache-Control":"no-cache, no-store, max-age=0","Pragma":"no-cache","Expires":"0"};
   const body=await r.loadString();
   const status=r.response&&r.response.statusCode?r.response.statusCode:0;
   if(status<200||status>=300) throw new Error("GitHub raw HTTP "+status);
