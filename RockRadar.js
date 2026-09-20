@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.12.1"
+const RADAR_VERSION = "2.12.2"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -316,18 +316,32 @@ async function collect(s) {
 function extractArticle(html){let h=String(html||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<nav[\s\S]*?<\/nav>/gi," ").replace(/<footer[\s\S]*?<\/footer>/gi," ");const main=h.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)||h.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);const body=main?main[1]:h,paras=[];let m;const re=/<(?:h1|h2|h3|p|blockquote)\b[^>]*>([\s\S]*?)<\/(?:h1|h2|h3|p|blockquote)>/gi;while((m=re.exec(body))&&paras.length<120){const t=clean(m[1]);if(t.length>25)paras.push(t)}return paras}
 function googleTranslateURL(url){return "https://translate.google.com/translate?sl=auto&tl=pt&u="+encodeURIComponent(url)}
 async function showReader(url,title,tr){
+  const started=Date.now()
+  log.info("Reader acionado",{url,title:title||"",traduzir:!!tr})
   if(tr){
     const translated=googleTranslateURL(url)
-    log.info("Abrindo tradução no Safari",{url,translated})
+    log.info("Tradução: URL construída",{original:url,traduzida:translated,ms:Date.now()-started})
+    try{
+      const probe=new Request(translated);probe.timeoutInterval=12
+      await probe.loadString()
+      const status=probe.response&&probe.response.statusCode||0
+      log.info("Tradução: teste HTTP concluído",{http:status,finalURL:probe.response&&probe.response.url||"",ms:Date.now()-started})
+    }catch(e){log.warn("Tradução: teste HTTP falhou",{erro:String(e),message:e&&e.message||"",ms:Date.now()-started})}
+    log.info("Tradução: enviando URL ao Safari",{ms:Date.now()-started})
     Safari.open(translated)
+    log.info("Tradução: comando Safari.open executado",{ms:Date.now()-started})
     return
   }
+  log.info("Reader: baixando matéria original",{url})
   const r=new Request(url);r.timeoutInterval=30
-  const html=await r.loadString(),paras=extractArticle(html)
-  if(!paras.length){await Safari.openInApp(url,false);return}
+  const html=await r.loadString()
+  log.info("Reader: matéria recebida",{http:r.response&&r.response.statusCode||0,bytes:html.length,finalURL:r.response&&r.response.url||"",ms:Date.now()-started})
+  const paras=extractArticle(html)
+  log.info("Reader: extração concluída",{paragrafos:paras.length,caracteres:paras.reduce((n,p)=>n+p.length,0),ms:Date.now()-started})
+  if(!paras.length){log.warn("Reader: nenhum parágrafo extraído; abrindo original",{url,ms:Date.now()-started});await Safari.openInApp(url,false);return}
   const translateURL=scriptURL({action:"reader",url,title:title||"",translate:"1"})
   const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;background:#0b0b0c;color:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#0b0b0cf5;border-bottom:1px solid #29292e}.bar a{color:#f0a21a;text-decoration:none;font-weight:800;font-size:13px;margin-right:18px}.wrap{max-width:760px;margin:auto;padding:22px 20px 60px}h1{font-size:30px;line-height:1.08}p{font-size:18px;line-height:1.62;color:#ddd}.note{font-size:12px;color:#777}</style></head><body><div class="bar"><a href="${esc(translateURL)}">🇧🇷 TRADUZIR PÁGINA</a><a href="${esc(url)}">SITE ORIGINAL</a></div><div class="wrap"><div class="note">Modo leitura</div><h1>${esc(title||"Matéria")}</h1>${paras.map(p=>`<p>${esc(p)}</p>`).join("")}</div></body></html>`
-  const w=new WebView();await w.loadHTML(page,url);await w.present(true)
+  const w=new WebView();log.info("Reader: carregando HTML local",{ms:Date.now()-started});await w.loadHTML(page,url);log.info("Reader: apresentando WebView",{ms:Date.now()-started});await w.present(true);log.info("Reader: WebView fechado",{ms:Date.now()-started})
 }
 const qp = args.queryParameters || {}
 const refreshRequested = qp.action === "refresh"
