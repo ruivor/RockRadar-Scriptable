@@ -1,6 +1,6 @@
 // RockRadar Spotify.js
 // OAuth Spotify Authorization Code + PKCE. Segredos/tokens ficam somente no Keychain do iPhone.
-const SPOTIFY_VERSION="1.0.0";
+const SPOTIFY_VERSION="1.0.1";
 let logger=null;
 try{logger=importModule("logger").createLogger("RockRadar Spotify.js")}catch{}
 function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[level.toLowerCase()](msg,meta)}catch{} try{console.log("["+level+"] "+msg+(meta?" "+JSON.stringify(meta):""))}catch{}}
@@ -11,19 +11,48 @@ const REDIRECT_URI="https://aeternare-production.up.railway.app/spotify/callback
 const SCOPE="playlist-modify-private";
 const K={verifier:"rockradar.spotify.verifier",state:"rockradar.spotify.state",access:"rockradar.spotify.access",refresh:"rockradar.spotify.refresh",expires:"rockradar.spotify.expires",playlist:"rockradar.spotify.playlist"};
 function b64url(data){return data.toBase64String().replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_")}
-async function sha256(data){
-  slog("INFO","PKCE: SHA-256 via WebView simples");
-  const w=new WebView();
-  await w.loadHTML("<!doctype html><html><body></body></html>");
-  const input=data.toRawString();
-  const script="var s="+JSON.stringify(input)+";var b=new TextEncoder().encode(s);crypto.subtle.digest('SHA-256',b).then(function(h){var a=Array.from(new Uint8Array(h));completion(a.join(','));}).catch(function(e){completion('ERR:'+String(e));});";
-  var result=await w.evaluateJavaScript(script,true);
-  if(typeof result!=="string")result=String(result);
-  if(result.indexOf("ERR:")===0)throw new Error(result);
-  var parts=result.split(",");
+function sha256Bytes(ascii){
+  var rightRotate=function(value,amount){return (value>>>amount)|(value<<(32-amount));};
+  var mathPow=Math.pow,maxWord=mathPow(2,32),lengthProperty="length",i,j,result="";
+  var words=[],asciiBitLength=ascii[lengthProperty]*8;
+  var hash=[],k=[],primeCounter=0,isComposite={};
+  for(var candidate=2;primeCounter<64;candidate++){
+    if(!isComposite[candidate]){
+      for(i=0;i<313;i+=candidate)isComposite[i]=candidate;
+      hash[primeCounter]=(mathPow(candidate,.5)*maxWord)|0;
+      k[primeCounter++]=(mathPow(candidate,1/3)*maxWord)|0;
+    }
+  }
+  ascii+="\x80";
+  while(ascii[lengthProperty]%64-56)ascii+="\x00";
+  for(i=0;i<ascii[lengthProperty];i++){
+    j=ascii.charCodeAt(i);
+    if(j>>8)throw new Error("PKCE verifier não ASCII");
+    words[i>>2]|=j<<((3-i)%4)*8;
+  }
+  words[words[lengthProperty]]=((asciiBitLength/maxWord)|0);
+  words[words[lengthProperty]]=asciiBitLength;
+  for(j=0;j<words[lengthProperty];){
+    var w=words.slice(j,j+=16),oldHash=hash.slice(0),hh=hash.slice(0);
+    for(i=0;i<64;i++){
+      var w15=w[i-15],w2=w[i-2];
+      var wi=i<16?w[i]:(w[i-16]+(rightRotate(w15,7)^rightRotate(w15,18)^(w15>>>3))+w[i-7]+(rightRotate(w2,17)^rightRotate(w2,19)^(w2>>>10)))|0;
+      w[i]=wi;
+      var A=hh[0],E=hh[4];
+      var temp1=(hh[7]+(rightRotate(E,6)^rightRotate(E,11)^rightRotate(E,25))+((E&hh[5])^((~E)&hh[6]))+k[i]+wi)|0;
+      var temp2=((rightRotate(A,2)^rightRotate(A,13)^rightRotate(A,22))+((A&hh[1])^(A&hh[2])^(hh[1]&hh[2])))|0;
+      hh=[(temp1+temp2)|0,A,hh[1],hh[2],(hh[3]+temp1)|0,E,hh[5],hh[6]];
+    }
+    for(i=0;i<8;i++)hash[i]=(hh[i]+oldHash[i])|0;
+  }
   var bytes=[];
-  for(var i=0;i<parts.length;i++)bytes.push(parseInt(parts[i],10));
-  if(bytes.length!==32)throw new Error("SHA-256 retornou "+bytes.length+" bytes");
+  for(i=0;i<8;i++)for(j=3;j+1;j--)bytes.push((hash[i]>>(j*8))&255);
+  return bytes;
+}
+async function sha256(data){
+  slog("INFO","PKCE: SHA-256 JS compacto");
+  var bytes=sha256Bytes(data.toRawString());
+  if(bytes.length!==32)throw new Error("SHA-256 inválido");
   slog("INFO","PKCE: SHA-256 concluído");
   return Data.fromBytes(bytes);
 }
