@@ -3,7 +3,7 @@
 let logger=null;
 try{logger=importModule("logger").createLogger("RockRadar Spotify.js")}catch{}
 function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[level.toLowerCase()](msg,meta)}catch{} try{console.log("["+level+"] "+msg+(meta?" "+JSON.stringify(meta):""))}catch{}}
-function safeErr(e){return {name:e?.name||"Error",message:String(e?.message||e),stack:String(e?.stack||"")}}
+function safeErr(e){return {name:(e&&e.name)||"Error",message:String((e&&e.message)||e),stack:String((e&&e.stack)||"")}}
 slog("INFO","Inicializando Spotify PKCE");
 const CLIENT_ID="2c3cf76b21ce46c09487907fe4fa2de7";
 const REDIRECT_URI="https://aeternare-production.up.railway.app/spotify/callback";
