@@ -40,17 +40,40 @@ const state = await load("state.json", {read:[], starred:[]})
 const old = await load("cache.json", {items:[]})
 const cutoff = Date.now() - 45 * 86400000
 
-const clean = s => (s || "")
-  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-  .replace(/<script[\s\S]*?<\/script>/gi, " ")
-  .replace(/<style[\s\S]*?<\/style>/gi, " ")
-  .replace(/<[^>]+>/g, " ")
-  .replace(/&nbsp;/g, " ")
-  .replace(/&amp;/g, "&")
-  .replace(/&quot;/g, '"')
-  .replace(/&#39;|&apos;/g, "'")
-  .replace(/\s+/g, " ")
-  .trim()
+function decodeEntities(s) {
+  let out = String(s || "")
+  const named = {
+    amp:"&", lt:"<", gt:">", quot:'"', apos:"'", nbsp:" ",
+    ndash:"–", mdash:"—", hellip:"…", rsquo:"’", lsquo:"‘",
+    rdquo:"”", ldquo:"“"
+  }
+  // Alguns feeds (especialmente Blogger) chegam codificados mais de uma vez.
+  for (let pass = 0; pass < 3; pass++) {
+    const prev = out
+    out = out
+      .replace(/&#(\d+);/g, (_,n) => {
+        try { return String.fromCodePoint(Number(n)) } catch { return _ }
+      })
+      .replace(/&#x([0-9a-f]+);/gi, (_,n) => {
+        try { return String.fromCodePoint(parseInt(n,16)) } catch { return _ }
+      })
+      .replace(/&([a-z]+);/gi, (m,n) => named[n.toLowerCase()] ?? m)
+    if (out === prev) break
+  }
+  return out
+}
+
+const clean = s => {
+  let out = String(s || "")
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+  out = decodeEntities(out)
+  out = out
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+  out = decodeEntities(out)
+  return out.replace(/\s+/g, " ").trim()
+}
 
 const key = i => `${i.sourceId}|${i.url || i.title}`.toLowerCase()
 const parseDate = v => {
