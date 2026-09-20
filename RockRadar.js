@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.3.1"
+const RADAR_VERSION = "2.4.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -162,6 +162,28 @@ function classify(text, baseTags=[]) {
   }
 }
 
+function extractImage(raw) {
+  let h = decodeEntities(String(raw || ""))
+  const patterns = [
+    /<media:content\b[^>]*\burl=["']([^"']+)["'][^>]*>/i,
+    /<media:thumbnail\b[^>]*\burl=["']([^"']+)["'][^>]*>/i,
+    /<enclosure\b[^>]*\burl=["']([^"']+)["'][^>]*(?:type=["']image\/[^"']+["'])?[^>]*>/i,
+    /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i
+  ]
+  for (const re of patterns) {
+    const m = h.match(re)
+    if (m && /^https?:\/\//i.test(m[1])) return m[1].replace(/&amp;/g,"&")
+  }
+  return ""
+}
+
+function youtubeVideoId(raw, url) {
+  const m1 = String(raw || "").match(/<yt:videoId>([^<]+)<\/yt:videoId>/i)
+  if (m1) return m1[1].trim()
+  const m2 = String(url || "").match(/[?&]v=([\w-]{6,})|youtu\.be\/([\w-]{6,})/)
+  return m2 ? (m2[1] || m2[2]) : ""
+}
+
 function norm(x) {
   const c = classify((x.title || "") + " " + (x.summary || ""), x.tags || [])
   return {
@@ -191,6 +213,8 @@ function feed(xml, s) {
       url:u,
       date:tag(b,["pubDate","published","updated","dc:date"]),
       summary:tag(b,["description","summary","content:encoded","content"]),
+      image: extractImage(b),
+      videoId: s.type === "youtube" ? youtubeVideoId(b, u) : "",
       tags:s.defaultTags || [],
       weight:s.weight || 0
     })
@@ -276,6 +300,7 @@ let items = [...map.values()]
     ...i,
     title:clean(i.title || ""),
     summary:clean(i.summary || "").slice(0, 500),
+    image:i.image || (i.videoId ? "https://i.ytimg.com/vi/" + i.videoId + "/hqdefault.jpg" : ""),
     isRead:(state.read || []).includes(key(i)),
     isStarred:(state.starred || []).includes(key(i))
   }))
@@ -349,6 +374,12 @@ function cardHTML(it) {
     ? `<div class="summary">${esc(it.summary.slice(0, 190))}</div>`
     : ""
   const typeIcon = it.sourceType === "youtube" ? "▶" : "●"
+  const mediaURL = it.videoId
+    ? "https://i.ytimg.com/vi/" + it.videoId + "/hqdefault.jpg"
+    : (it.image || "")
+  const mediaHTML = mediaURL
+    ? `<a class="media-link" href="${esc(openURL)}"><div class="media"><img loading="lazy" src="${esc(mediaURL)}" alt="" referrerpolicy="no-referrer"><span class="media-fallback">ROCK RADAR</span>${it.sourceType === "youtube" ? '<span class="play">▶</span>' : ""}</div></a>`
+    : ""
 
   return `
     <article class="card ${it.isRead ? "read" : ""}" data-cats="${esc((it.categories||[]).join(" "))}" data-score="${it.score||0}" data-starred="${it.isStarred ? "1":"0"}" data-personal="${personalKeys.has(k) ? "1":"0"}">
@@ -356,6 +387,8 @@ function cardHTML(it) {
         <div class="source"><span class="source-dot">${typeIcon}</span>${esc(it.source)}</div>
         <div class="date">${esc(relativeDate(it.date))}</div>
       </div>
+
+      ${mediaHTML}
 
       <a class="title-link" href="${esc(openURL)}">
         <h2>${esc(it.title)}</h2>
@@ -444,6 +477,11 @@ h1{font-size:30px;line-height:1;margin:5px 0 0;font-weight:850;letter-spacing:-1
 .source{font-size:11px;color:#c9c9ce;font-weight:700;letter-spacing:.25px;text-transform:uppercase}
 .source-dot{color:var(--accent);margin-right:7px;font-size:9px}
 .date{font-size:11px;color:var(--muted)}
+.media-link{display:block;text-decoration:none;margin:12px -15px 0}
+.media{position:relative;width:100%;aspect-ratio:16/9;background:#101012;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.media img{position:relative;z-index:2;width:100%;height:100%;display:block;object-fit:cover}
+.media-fallback{position:absolute;z-index:1;inset:0;display:flex;align-items:center;justify-content:center;color:#3f3f45;font-size:11px;letter-spacing:2px;font-weight:800}
+.play{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding-left:4px;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.45);color:white;font-size:22px;box-shadow:0 5px 18px rgba(0,0,0,.35)}
 .title-link{text-decoration:none;color:inherit}
 h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spacing:-.45px}
 .artists{font-size:12px;color:var(--accent2);font-weight:700;margin-bottom:7px}
