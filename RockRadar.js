@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.12.2"
+const RADAR_VERSION = "2.13.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -313,34 +313,72 @@ async function collect(s) {
 }
 
 // Ações chamadas pela própria WebView.
-function extractArticle(html){let h=String(html||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<nav[\s\S]*?<\/nav>/gi," ").replace(/<footer[\s\S]*?<\/footer>/gi," ");const main=h.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)||h.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);const body=main?main[1]:h,paras=[];let m;const re=/<(?:h1|h2|h3|p|blockquote)\b[^>]*>([\s\S]*?)<\/(?:h1|h2|h3|p|blockquote)>/gi;while((m=re.exec(body))&&paras.length<120){const t=clean(m[1]);if(t.length>25)paras.push(t)}return paras}
-function googleTranslateURL(url){return "https://translate.google.com/translate?sl=auto&tl=pt&u="+encodeURIComponent(url)}
+function decodeHTML(s){return String(s||"").replace(/<br\s*\/?\s*>/gi,"\n").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCharCode(parseInt(n,16)))}
+function stripHTML(s){return decodeHTML(String(s||"").replace(/<[^>]+>/g," ")).replace(/[ \t]+/g," ").replace(/\n\s+/g,"\n").trim()}
+function extractArticle(html){
+  let h=String(html||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<nav[\s\S]*?<\/nav>/gi," ").replace(/<footer[\s\S]*?<\/footer>/gi," ")
+  const candidates=[]
+  const selectors=[/<div\b[^>]*class=["'][^"']*post-body[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi,/<div\b[^>]*class=["'][^"']*entry-content[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,/<article\b[^>]*>([\s\S]*?)<\/article>/gi,/<main\b[^>]*>([\s\S]*?)<\/main>/gi]
+  for(const re of selectors){let m;while((m=re.exec(h)))candidates.push(m[1])}
+  candidates.push(h)
+  let best=[]
+  for(const body of candidates){
+    const parts=[],re=/<(?:h1|h2|h3|p|blockquote|div)\b[^>]*>([\s\S]*?)<\/(?:h1|h2|h3|p|blockquote|div)>/gi;let m
+    while((m=re.exec(body))&&parts.length<250){const t=stripHTML(m[1]);if(t.length>25&&!/^(share|posted by|labels:|comments?:)/i.test(t))parts.push(t)}
+    const unique=[...new Set(parts)]
+    if(unique.join("\n").length>best.join("\n").length)best=unique
+  }
+  return best
+}
+function splitTranslationSegments(text){
+  const maxBytes=430,out=[];let cur=""
+  const sentences=String(text||"").split(/(?<=[.!?])\s+|\n+/)
+  const bytes=s=>encodeURIComponent(s).replace(/%[0-9A-F]{2}|./g,"x").length
+  for(let s of sentences){s=s.trim();if(!s)continue
+    while(bytes(s)>maxBytes){let cut=Math.min(350,s.length);while(cut>80&&bytes(s.slice(0,cut))>maxBytes)cut-=20;const p=s.lastIndexOf(" ",cut);if(p>80)cut=p;out.push(s.slice(0,cut).trim());s=s.slice(cut).trim()}
+    if(!cur){cur=s;continue}
+    if(bytes(cur+" "+s)<=maxBytes)cur+=" "+s;else{out.push(cur);cur=s}
+  }
+  if(cur)out.push(cur);return out
+}
+async function translatePT(paras){
+  const started=Date.now(),segments=splitTranslationSegments(paras.join("\n"))
+  log.info("Tradução MyMemory iniciada",{paragrafos:paras.length,segmentos:segments.length,caracteres:paras.join("\n").length})
+  const out=[]
+  for(let i=0;i<segments.length;i++){
+    const q=segments[i],url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(q)+"&langpair=en%7Cpt-BR"
+    const r=new Request(url);r.timeoutInterval=15
+    try{
+      const d=await r.loadJSON(),status=r.response&&r.response.statusCode||0
+      const translated=d&&d.responseData&&d.responseData.translatedText
+      log.info("Tradução segmento",{n:i+1,total:segments.length,http:status,chars:q.length,match:d&&d.responseData&&d.responseData.match,ms:Date.now()-started})
+      if(!translated||status>=400)throw new Error((d&&d.responseDetails)||"Resposta de tradução inválida")
+      out.push(translated)
+    }catch(e){log.error("Tradução segmento falhou",{n:i+1,total:segments.length,erro:String(e),message:e&&e.message||"",ms:Date.now()-started});throw e}
+  }
+  log.info("Tradução MyMemory concluída",{segmentos:segments.length,ms:Date.now()-started})
+  return out
+}
+async function loadArticle(url){
+  const r=new Request(url);r.timeoutInterval=30
+  const html=await r.loadString(),status=r.response&&r.response.statusCode||0
+  if(status>=400)throw new Error("HTTP "+status+" ao carregar matéria")
+  const paras=extractArticle(html)
+  return {html,paras,status,finalURL:r.response&&r.response.url||url}
+}
 async function showReader(url,title,tr){
   const started=Date.now()
   log.info("Reader acionado",{url,title:title||"",traduzir:!!tr})
-  if(tr){
-    const translated=googleTranslateURL(url)
-    log.info("Tradução: URL construída",{original:url,traduzida:translated,ms:Date.now()-started})
-    try{
-      const probe=new Request(translated);probe.timeoutInterval=12
-      await probe.loadString()
-      const status=probe.response&&probe.response.statusCode||0
-      log.info("Tradução: teste HTTP concluído",{http:status,finalURL:probe.response&&probe.response.url||"",ms:Date.now()-started})
-    }catch(e){log.warn("Tradução: teste HTTP falhou",{erro:String(e),message:e&&e.message||"",ms:Date.now()-started})}
-    log.info("Tradução: enviando URL ao Safari",{ms:Date.now()-started})
-    Safari.open(translated)
-    log.info("Tradução: comando Safari.open executado",{ms:Date.now()-started})
-    return
-  }
   log.info("Reader: baixando matéria original",{url})
-  const r=new Request(url);r.timeoutInterval=30
-  const html=await r.loadString()
-  log.info("Reader: matéria recebida",{http:r.response&&r.response.statusCode||0,bytes:html.length,finalURL:r.response&&r.response.url||"",ms:Date.now()-started})
-  const paras=extractArticle(html)
+  const article=await loadArticle(url)
+  const paras=article.paras
+  log.info("Reader: matéria recebida",{http:article.status,bytes:article.html.length,finalURL:article.finalURL,ms:Date.now()-started})
   log.info("Reader: extração concluída",{paragrafos:paras.length,caracteres:paras.reduce((n,p)=>n+p.length,0),ms:Date.now()-started})
   if(!paras.length){log.warn("Reader: nenhum parágrafo extraído; abrindo original",{url,ms:Date.now()-started});await Safari.openInApp(url,false);return}
-  const translateURL=scriptURL({action:"reader",url,title:title||"",translate:"1"})
-  const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;background:#0b0b0c;color:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#0b0b0cf5;border-bottom:1px solid #29292e}.bar a{color:#f0a21a;text-decoration:none;font-weight:800;font-size:13px;margin-right:18px}.wrap{max-width:760px;margin:auto;padding:22px 20px 60px}h1{font-size:30px;line-height:1.08}p{font-size:18px;line-height:1.62;color:#ddd}.note{font-size:12px;color:#777}</style></head><body><div class="bar"><a href="${esc(translateURL)}">🇧🇷 TRADUZIR PÁGINA</a><a href="${esc(url)}">SITE ORIGINAL</a></div><div class="wrap"><div class="note">Modo leitura</div><h1>${esc(title||"Matéria")}</h1>${paras.map(p=>`<p>${esc(p)}</p>`).join("")}</div></body></html>`
+  let shown=paras
+  if(tr){shown=await translatePT(paras);log.info("Reader: tradução pronta",{paragrafos:shown.length,ms:Date.now()-started})}
+  const toggle=scriptURL({action:"reader",url,title:title||"",translate:tr?"0":"1"})
+  const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;background:#0b0b0c;color:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#0b0b0cf5;border-bottom:1px solid #29292e}.bar a{color:#f0a21a;text-decoration:none;font-weight:800;font-size:13px;margin-right:18px}.wrap{max-width:760px;margin:auto;padding:22px 20px 60px}h1{font-size:30px;line-height:1.08}p{font-size:18px;line-height:1.62;color:#ddd}.note{font-size:12px;color:#777}</style></head><body><div class="bar"><a href="${esc(toggle)}">${tr?"ORIGINAL":"🇧🇷 TRADUZIR"}</a><a href="${esc(url)}">SITE ORIGINAL</a></div><div class="wrap"><div class="note">${tr?"Tradução automática · MyMemory":"Modo leitura"}</div><h1>${esc(title||"Matéria")}</h1>${shown.map(p=>`<p>${esc(p)}</p>`).join("")}</div></body></html>`
   const w=new WebView();log.info("Reader: carregando HTML local",{ms:Date.now()-started});await w.loadHTML(page,url);log.info("Reader: apresentando WebView",{ms:Date.now()-started});await w.present(true);log.info("Reader: WebView fechado",{ms:Date.now()-started})
 }
 const qp = args.queryParameters || {}
