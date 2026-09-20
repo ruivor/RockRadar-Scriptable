@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.6.1"
+const RADAR_VERSION = "2.7.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -443,6 +443,8 @@ function cardHTML(it) {
   const k = key(it)
   const openURL = scriptURL({action:"open", k, url:it.url || ""})
   const starURL = scriptURL({action:"star", k})
+  const spotifyQuery = ((it.artists || []).length ? it.artists[0] : it.title).trim()
+  const spotifyURL = "scriptable:///run/RockRadar%20Spotify?action=add&q=" + encodeURIComponent(spotifyQuery)
   const catsHTML = (it.categories || []).slice(0, 2)
     .map(c => `<span class="badge category">${esc(catName(c))}</span>`).join("")
   const tagHTML = (it.tags || []).slice(0, 3)
@@ -484,7 +486,7 @@ function cardHTML(it) {
 
       <div class="card-bottom">
         <span class="score">Afinidade ${Math.max(0, Math.round(it.score || 0))}</span>
-        <a class="star" href="${esc(starURL)}">${it.isStarred ? "★" : "☆"}</a>
+        <div class="card-actions"><a class="spotify-add" href="${esc(spotifyURL)}">＋ SPOTIFY</a><a class="star" href="${esc(starURL)}">${it.isStarred ? "★" : "☆"}</a></div>
       </div>
     </article>
   `
@@ -586,7 +588,7 @@ h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spac
 .badge.tag{background:#222226;color:#98989f;border:1px solid #2b2b30}
 .card-bottom{border-top:1px solid var(--line);padding-top:10px}
 .score{font-size:10px;color:#74747c;text-transform:uppercase;letter-spacing:.7px}
-.star{font-size:25px;line-height:1;text-decoration:none;color:var(--accent)}
+.card-actions{display:flex;align-items:center;gap:12px}\n.spotify-add{font-size:10px;font-weight:800;letter-spacing:.6px;text-decoration:none;color:var(--accent);border:1px solid rgba(240,162,26,.3);border-radius:999px;padding:6px 9px;background:rgba(240,162,26,.08)}\n.star{font-size:25px;line-height:1;text-decoration:none;color:var(--accent)}
 .empty{text-align:center;color:var(--muted);padding:70px 30px}
 .footer{text-align:center;color:#585860;font-size:10px;padding:20px}
 
