@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.11.2"
+const RADAR_VERSION = "2.11.3"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -467,8 +467,7 @@ function spotifyHint(it) {
 
 function cardHTML(it) {
   const k=key(it)
-  const openURL=scriptURL({action:"open",k,url:it.url||""})\n  const readerURL=scriptURL({action:"reader",url:it.url||"",title:it.title||"",translate:"0"})
-  const starURL=scriptURL({action:"star",k})
+  const openURL=scriptURL({action:"open",k,url:it.url||""})\n  const readerURL=scriptURL({action:"reader",url:it.url||"",title:it.title||"",translate:"0"})\n  const starURL=scriptURL({action:"star",k})
   const hint=spotifyHint(it)
   const primaryArtist=hint.artist
   const spotifyURL="scriptable:///run/RockRadar%20Spotify?action=add&artist="+encodeURIComponent(primaryArtist)+"&title="+encodeURIComponent(hint.release)
