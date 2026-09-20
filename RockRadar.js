@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.8.0"
+const RADAR_VERSION = "2.9.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -438,6 +438,16 @@ function scriptURL(params) {
     .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join("&")
   return baseURL + "?" + q
+}
+
+function spotifyHint(it) {
+  let artist = ((it.artists || [])[0] || "").trim()
+  let title = String(it.title || "").trim()
+  const review = title.match(/^(.+?)\s*[-–—:]\s*(.+?)(?:\s*[\[(](?:album\s+)?review[\])]\s*)?$/i)
+  if (!artist && review) artist = review[1].trim()
+  let release = review ? review[2].trim() : title
+  release = release.replace(/\s*[\[(](?:album\s+)?review[\])]\s*$/i, "").trim()
+  return {artist, release}
 }
 
 function cardHTML(it) {
