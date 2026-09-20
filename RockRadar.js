@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.6.0"
+const RADAR_VERSION = "2.6.1"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -17,6 +17,29 @@ log.info("Inicialização")
 const fm = FileManager.iCloud()
 const base = fm.joinPath(fm.documentsDirectory(), "RockRadar")
 if (!fm.fileExists(base)) fm.createDirectory(base, true)
+
+// Auto-reparo do sincronizador: o Radar pode atualizar apenas o RockRadar Sync.js.
+// Usa GitHub Contents API para não depender do cache do CDN.
+try {
+  const syncPath = fm.joinPath(fm.documentsDirectory(), "RockRadar Sync.js")
+  let localSync = fm.fileExists(syncPath) ? fm.readString(syncPath) : ""
+  const localSyncVersion = localSync.match(/const SYNC_VERSION=["']([^"']+)/)?.[1] || "0"
+  if (localSyncVersion !== "2.0.1") {
+    const req = new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/RockRadar%20Sync.js?ref=main&t="+Date.now())
+    req.timeoutInterval = 15
+    req.headers = {"User-Agent":"RockRadar-Scriptable/"+RADAR_VERSION,"Cache-Control":"no-cache"}
+    const body = await req.loadJSON()
+    if (body && body.content) {
+      const fresh = Data.fromBase64String(String(body.content).replace(/\\n/g,"")).toRawString()
+      if (fresh.includes('const SYNC_VERSION="2.0.1"')) {
+        fm.writeString(syncPath, fresh)
+        log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.0.1"})
+      }
+    }
+  }
+} catch (e) {
+  log.warn("Não foi possível auto-reparar o Sync", {erro:String(e)})
+}
 const p = n => fm.joinPath(base, n)
 
 async function load(n, fallback) {
