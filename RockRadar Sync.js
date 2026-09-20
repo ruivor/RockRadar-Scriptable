@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="1.7.2";
+const SYNC_VERSION="2.0.0";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -76,7 +76,7 @@ a.title="Rock Radar Sync v"+SYNC_VERSION;
 a.message=(err.length?`${ok} atualizados. Falhas:\n${err.join("\n")}\n\n`:`${ok} arquivos atualizados.\n\n`)+
   `GitHub: v${manifest.rockRadar}\niPhone: v${localRadar}\n`+
   (matched?"✓ Radar confere":"⚠ Radar NÃO confere")+"\nSpotify: v"+localSpotify+" / v"+(manifest.spotify||"n/a")+"\n"+(spotifyMatched?"✓ Spotify confere":"⚠ Spotify NÃO confere");
-if(String(manifest.sync)!==SYNC_VERSION)a.message+="\n\nSync remoto: v"+manifest.sync+" (o Sync não se autoatualiza mais).";
+
 a.addAction("OK");
 await a.presentAlert();
 Script.complete();
