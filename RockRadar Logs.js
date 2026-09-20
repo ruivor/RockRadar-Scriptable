@@ -27,6 +27,7 @@ const menu = new Alert()
 menu.title = "Rock Radar Logs"
 menu.message = `${lines.length} registros · ${errors.length} erros`
 menu.addAction("Ver logs")
+menu.addAction("Copiar todos os logs")
 menu.addAction("Copiar último erro")
 menu.addDestructiveAction("Limpar logs")
 menu.addCancelAction("Fechar")
@@ -46,13 +47,20 @@ if (choice === 0) {
   await web.loadHTML(html)
   await web.present(true)
 } else if (choice === 1) {
+  Pasteboard.copyString(content)
+  const a = new Alert()
+  a.title = "Logs copiados"
+  a.message = lines.length + " registros foram copiados para a área de transferência."
+  a.addAction("OK")
+  await a.presentAlert()
+} else if (choice === 2) {
   Pasteboard.copyString(lastError || "Nenhum ERROR registrado.")
   const a = new Alert()
   a.title = "Copiado"
   a.message = lastError ? "O último erro foi copiado para a área de transferência." : "Não há erro registrado."
   a.addAction("OK")
   await a.presentAlert()
-} else if (choice === 2) {
+} else if (choice === 3) {
   fm.writeString(logFile, "")
 }
 Script.complete()
