@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.12.0"
+const RADAR_VERSION = "2.12.1"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -317,10 +317,9 @@ function extractArticle(html){let h=String(html||"").replace(/<script[\s\S]*?<\/
 function googleTranslateURL(url){return "https://translate.google.com/translate?sl=auto&tl=pt&u="+encodeURIComponent(url)}
 async function showReader(url,title,tr){
   if(tr){
-    log.info("Abrindo tradução de site pelo Google Translate",{url})
-    const w=new WebView()
-    await w.loadURL(googleTranslateURL(url))
-    await w.present(true)
+    const translated=googleTranslateURL(url)
+    log.info("Abrindo tradução no Safari",{url,translated})
+    Safari.open(translated)
     return
   }
   const r=new Request(url);r.timeoutInterval=30
