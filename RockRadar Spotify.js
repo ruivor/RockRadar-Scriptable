@@ -7,7 +7,7 @@ function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[le
 function safeErr(e){return {name:(e&&e.name)||"Error",message:String((e&&e.message)||e),stack:String((e&&e.stack)||"")}}
 slog("INFO","Inicializando Spotify PKCE");
 const CLIENT_ID="2c3cf76b21ce46c09487907fe4fa2de7";
-const REDIRECT_URI="https://aeternare-production.up.railway.app/spotify/callback";
+const REDIRECT_URI="https://aeternare-spotify-callback-production.up.railway.app/spotify/callback";
 const SCOPE="playlist-modify-private";
 const K={verifier:"rockradar.spotify.verifier",state:"rockradar.spotify.state",access:"rockradar.spotify.access",refresh:"rockradar.spotify.refresh",expires:"rockradar.spotify.expires",playlist:"rockradar.spotify.playlist"};
 function b64url(data){return data.toBase64String().replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_")}
