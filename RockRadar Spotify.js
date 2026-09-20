@@ -15,7 +15,7 @@ function sha256Text(ascii){
   function rightRotate(value,amount){return (value>>>amount)|(value<<(32-amount))}
   var mathPow=Math.pow,maxWord=mathPow(2,32),lengthProperty="length",i,j,result="";
   var words=[],asciiBitLength=ascii[lengthProperty]*8;
-  var hash=sha256Text.h=sha256Text.h||[],k=sha256Text.k=sha256Text.k||[],primeCounter=k[lengthProperty],isComposite={};
+  var hash=[],k=[],primeCounter=0,isComposite={};
   for(var candidate=2;primeCounter<64;candidate++){
     if(!isComposite[candidate]){
       for(i=0;i<313;i+=candidate)isComposite[i]=candidate;
@@ -56,7 +56,9 @@ function sha256Text(ascii){
 }
 async function sha256(data){
   slog("INFO","PKCE: SHA-256 nativo JS");
-  return sha256Text(data.toRawString());
+  var out=sha256Text(data.toRawString());
+  slog("INFO","PKCE: SHA-256 concluído");
+  return out;
 }
 function randomVerifier(){return b64url(Data.fromString(Array.from({length:64},()=>String.fromCharCode(33+Math.floor(Math.random()*94))).join("")))}
 function qs(o){return Object.entries(o).map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&")}
