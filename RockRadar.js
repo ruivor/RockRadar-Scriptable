@@ -266,6 +266,29 @@ let items = [...map.values()]
   )
   .slice(0, 180)
 
+// "Para mim" é uma curadoria curta, não apenas outro filtro.
+// Priorizamos favoritos, artistas monitorados e alta afinidade, com recência como desempate.
+const personalRank = it => {
+  const ageDays = it.date ? Math.max(0, (Date.now() - new Date(it.date).getTime()) / 86400000) : 30
+  const recency = Math.max(0, 12 - ageDays)
+  const watched = (it.artists || []).length ? 30 : 0
+  const starred = it.isStarred ? 50 : 0
+  const discovery = (it.categories || []).includes("descobertas") ? 5 : 0
+  const live = (it.categories || []).includes("ao-vivo") ? 4 : 0
+  return starred + watched + (it.score || 0) + recency + discovery + live
+}
+
+const personalItems = items
+  .filter(it =>
+    it.isStarred ||
+    (it.artists || []).length > 0 ||
+    (it.score || 0) >= 24
+  )
+  .sort((a,b) => personalRank(b) - personalRank(a))
+  .slice(0, 24)
+
+const personalKeys = new Set(personalItems.map(key))
+
 save("cache.json", {updatedAt:new Date().toISOString(), items})
 log.info("Coleta concluída", {itens:items.length, fontes:(cfg.sources||[]).filter(s=>s.enabled!==false).length})
 
@@ -308,7 +331,7 @@ function cardHTML(it) {
   const typeIcon = it.sourceType === "youtube" ? "▶" : "●"
 
   return `
-    <article class="card ${it.isRead ? "read" : ""}" data-cats="${esc((it.categories||[]).join(" "))}" data-score="${it.score||0}" data-starred="${it.isStarred ? "1":"0"}">
+    <article class="card ${it.isRead ? "read" : ""}" data-cats="${esc((it.categories||[]).join(" "))}" data-score="${it.score||0}" data-starred="${it.isStarred ? "1":"0"}" data-personal="${personalKeys.has(k) ? "1":"0"}">
       <div class="card-top">
         <div class="source"><span class="source-dot">${typeIcon}</span>${esc(it.source)}</div>
         <div class="date">${esc(relativeDate(it.date))}</div>
@@ -336,7 +359,7 @@ function cardHTML(it) {
 
 const totalUnread = items.filter(i => !i.isRead).length
 const totalStarred = items.filter(i => i.isStarred).length
-const personalCount = items.filter(i => i.score >= 15 || i.artists?.length || i.categories.includes("descobertas") || i.categories.includes("ao-vivo")).length
+const personalCount = personalItems.length
 
 const chips = [
   {id:"personal", name:"Para mim", count:personalCount},
@@ -456,7 +479,7 @@ function applyFilter(filter, label){
     let show=false
     if(filter==='all') show=true
     else if(filter==='starred') show=starred
-    else if(filter==='personal') show=score>=15 || cats.includes('descobertas') || cats.includes('ao-vivo')
+    else if(filter==='personal') show=card.dataset.personal==='1'
     else show=cats.includes(filter)
     card.style.display=show?'block':'none'
     if(show) visible++
