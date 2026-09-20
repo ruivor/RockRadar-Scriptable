@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.4.0"
+const RADAR_VERSION = "2.5.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -172,7 +172,7 @@ function extractImage(raw) {
   ]
   for (const re of patterns) {
     const m = h.match(re)
-    if (m && /^https?:\/\//i.test(m[1])) return m[1].replace(/&amp;/g,"&")
+    if (m && /^https?:\/\//i.test(m[1])) return betterImageURL(m[1])
   }
   return ""
 }
@@ -182,6 +182,30 @@ function youtubeVideoId(raw, url) {
   if (m1) return m1[1].trim()
   const m2 = String(url || "").match(/[?&]v=([\w-]{6,})|youtu\.be\/([\w-]{6,})/)
   return m2 ? (m2[1] || m2[2]) : ""
+}
+
+function betterImageURL(url) {
+  let u = decodeEntities(String(url || "")).replace(/&amp;/g,"&")
+  if (!u) return ""
+  // Blogger/Googleusercontent frequentemente entrega miniaturas /s320/, /w400/ etc.
+  u = u.replace(/\/s\d+(?:-[a-z])?\//i, "/s1600/")
+       .replace(/\/w\d+(?:-h\d+)?(?:-[a-z])?\//i, "/s1600/")
+  return u
+}
+
+function pageImage(html) {
+  const h = String(html || "")
+  const patterns = [
+    /<meta\b[^>]*property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["'][^>]*>/i,
+    /<meta\b[^>]*content=["']([^"']+)["'][^>]*property=["']og:image(?::secure_url)?["'][^>]*>/i,
+    /<meta\b[^>]*name=["']twitter:image(?::src)?["'][^>]*content=["']([^"']+)["'][^>]*>/i,
+    /<meta\b[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image(?::src)?["'][^>]*>/i
+  ]
+  for (const re of patterns) {
+    const m=h.match(re)
+    if(m) return betterImageURL(m[1])
+  }
+  return ""
 }
 
 function norm(x) {
@@ -280,7 +304,12 @@ if (qp.action && qp.k) {
     q.add(decodedKey)
     state.read = [...q]
     save("state.json", state)
-    if (qp.url) Safari.open(decodeURIComponent(qp.url))
+    if (qp.url) {
+      const articleURL = decodeURIComponent(qp.url)
+      await Safari.openInApp(articleURL, false)
+      // Ao fechar a matéria, reabre o agregador automaticamente.
+      Safari.open("scriptable:///run/RockRadar")
+    }
     Script.complete()
     return
   }
@@ -288,6 +317,21 @@ if (qp.action && qp.k) {
 
 let fresh = []
 for (const s of cfg.sources || []) fresh.push(...await collect(s))
+
+// Para artigos, tenta obter a imagem social em alta resolução da página original.
+const enrichCandidates = fresh
+  .filter(i => i.sourceType !== "youtube" && i.url && /^https?:/i.test(i.url))
+  .sort((a,b)=>(b.score||0)-(a.score||0))
+  .slice(0,36)
+for (const it of enrichCandidates) {
+  try {
+    const html = await get(it.url)
+    const hi = pageImage(html)
+    if (hi) it.image = hi
+  } catch(e) {
+    log.warn("Falha ao buscar imagem da matéria", {url:it.url, erro:String(e)})
+  }
+}
 
 const map = new Map()
 for (const i of [...fresh, ...(old.items || [])]) {
@@ -300,7 +344,7 @@ let items = [...map.values()]
     ...i,
     title:clean(i.title || ""),
     summary:clean(i.summary || "").slice(0, 500),
-    image:i.image || (i.videoId ? "https://i.ytimg.com/vi/" + i.videoId + "/hqdefault.jpg" : ""),
+    image:betterImageURL(i.image || (i.videoId ? "https://i.ytimg.com/vi/" + i.videoId + "/maxresdefault.jpg" : "")),
     isRead:(state.read || []).includes(key(i)),
     isStarred:(state.starred || []).includes(key(i))
   }))
@@ -375,10 +419,10 @@ function cardHTML(it) {
     : ""
   const typeIcon = it.sourceType === "youtube" ? "▶" : "●"
   const mediaURL = it.videoId
-    ? "https://i.ytimg.com/vi/" + it.videoId + "/hqdefault.jpg"
+    ? "https://i.ytimg.com/vi/" + it.videoId + "/maxresdefault.jpg"
     : (it.image || "")
   const mediaHTML = mediaURL
-    ? `<a class="media-link" href="${esc(openURL)}"><div class="media"><img loading="lazy" src="${esc(mediaURL)}" alt="" referrerpolicy="no-referrer"><span class="media-fallback">ROCK RADAR</span>${it.sourceType === "youtube" ? '<span class="play">▶</span>' : ""}</div></a>`
+    ? `<a class="media-link" href="${esc(openURL)}"><div class="media"><img loading="lazy" src="${esc(mediaURL)}" alt="" referrerpolicy="no-referrer" ${it.videoId ? `onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://i.ytimg.com/vi/${esc(it.videoId)}/hqdefault.jpg'}"` : ""}><span class="media-fallback">ROCK RADAR</span>${it.sourceType === "youtube" ? '<span class="play">▶</span>' : ""}</div></a>`
     : ""
 
   return `
