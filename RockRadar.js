@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.3.0"
+const RADAR_VERSION = "2.3.1"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -415,7 +415,7 @@ body{padding-bottom:42px}
 }
 .brand-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 .eyebrow{font-size:11px;letter-spacing:2.1px;color:var(--accent);font-weight:700;text-transform:uppercase}
-h1{font-size:30px;line-height:1;margin:5px 0 0;font-weight:850;letter-spacing:-1.2px}
+h1{font-size:30px;line-height:1;margin:5px 0 0;font-weight:850;letter-spacing:-1.2px}\n.brand-version{margin-top:7px;font-size:10px;letter-spacing:1.2px;color:#6f6f77;font-weight:650}
 .stats{text-align:right;color:var(--muted);font-size:12px;line-height:1.4}
 .stats strong{color:var(--text)}
 .chips{
@@ -457,7 +457,7 @@ h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spac
 .star{font-size:25px;line-height:1;text-decoration:none;color:var(--accent)}
 .empty{text-align:center;color:var(--muted);padding:70px 30px}
 .footer{text-align:center;color:#585860;font-size:10px;padding:20px}
-.version{position:fixed;right:10px;bottom:8px;z-index:30;font-size:9px;letter-spacing:.4px;color:#55555d;background:rgba(11,11,12,.72);padding:4px 6px;border-radius:6px;backdrop-filter:blur(8px)}
+
 </style>
 </head>
 <body>
@@ -465,7 +465,7 @@ h2{font-size:20px;line-height:1.16;margin:10px 0 8px;font-weight:780;letter-spac
   <div class="brand-row">
     <div>
       <div class="eyebrow">Heavy underground feed</div>
-      <h1>ROCK RADAR</h1>
+      <h1>ROCK RADAR</h1>\n      <div class="brand-version">VERSÃO ${RADAR_VERSION}</div>
     </div>
     <div class="stats"><strong>${totalUnread}</strong> não lidos<br>${items.length} no radar</div>
   </div>
