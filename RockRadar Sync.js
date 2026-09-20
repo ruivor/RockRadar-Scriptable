@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="2.0.3";
+const SYNC_VERSION="2.0.4";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -8,20 +8,20 @@ function syncLog(level,msg){try{const ld=fm.joinPath(dir,"logs");if(!fm.fileExis
 if(!fm.fileExists(dir))fm.createDirectory(dir,true);
 
 async function raw(name){
-  // jsDelivr evita o cache antigo observado no raw.githubusercontent.com.
+  // GitHub Contents API em modo raw: evita CDN e elimina Base64.
   const url="https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/"+name.split("/").map(encodeURIComponent).join("/")+"?ref=main";
   const r=new Request(url);
   r.timeoutInterval=20;
-  r.headers={"User-Agent":"RockRadar-Scriptable/"+SYNC_VERSION,"Cache-Control":"no-cache"};
-  const apiBody=await r.loadString();
+  r.headers={
+    "User-Agent":"RockRadar-Scriptable/"+SYNC_VERSION,
+    "Accept":"application/vnd.github.raw+json",
+    "Cache-Control":"no-cache"
+  };
+  const body=await r.loadString();
   const status=r.response&&r.response.statusCode?r.response.statusCode:0;
-  if(status<200||status>=300)throw new Error("GitHub API HTTP "+status);
-  const obj=JSON.parse(apiBody);
-  if(!obj.content)throw new Error("GitHub API sem conteúdo para "+name);
-  const b64=String(obj.content).replace(/\\s/g,"");
-  const decoded=Data.fromBase64String(b64);
-  if(!decoded)throw new Error("Falha ao decodificar Base64 de "+name);
-  return decoded.toRawString();
+  if(status<200||status>=300)throw new Error("GitHub API HTTP "+status+" em "+name);
+  if(!body)throw new Error("GitHub retornou conteúdo vazio para "+name);
+  return body;
 }
 
 let manifest={rockRadar:"desconhecida",sync:"desconhecida"};
