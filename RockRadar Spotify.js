@@ -8,9 +8,9 @@ function b64url(data){return data.toBase64String().replace(/=/g,"").replace(/\+/
 async function sha256(data){
   const w=new WebView();
   const bytes=Array.from(data.getBytes());
-  const js="(async()=>{const b=new Uint8Array("+JSON.stringify(bytes)+");const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h));})()";
-  const out=await w.evaluateJavaScript(js,true);
-  return Data.fromBytes(out);
+  const script="(async()=>{const b=new Uint8Array("+JSON.stringify(bytes)+");const h=await crypto.subtle.digest('SHA-256',b);return JSON.stringify(Array.from(new Uint8Array(h)));})()";
+  const result=await w.evaluateJavaScript(script);
+  return Data.fromBytes(JSON.parse(result));
 }
 function randomVerifier(){return b64url(Data.fromString(Array.from({length:64},()=>String.fromCharCode(33+Math.floor(Math.random()*94))).join("")))}
 function qs(o){return Object.entries(o).map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&")}
