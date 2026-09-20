@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.11.0"
+const RADAR_VERSION = "2.11.1"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -318,7 +318,12 @@ async function translatePT(text){const input=String(text||"").trim();if(!input)r
 function extractArticle(html){let h=String(html||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<nav[\s\S]*?<\/nav>/gi," ").replace(/<footer[\s\S]*?<\/footer>/gi," ");const main=h.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)||h.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);const body=main?main[1]:h,paras=[];let m;const re=/<(?:h1|h2|h3|p|blockquote)\b[^>]*>([\s\S]*?)<\/(?:h1|h2|h3|p|blockquote)>/gi;while((m=re.exec(body))&&paras.length<120){const t=clean(m[1]);if(t.length>25)paras.push(t)}return paras}
 async function showReader(url,title,tr){const r=new Request(url);r.timeoutInterval=30;const html=await r.loadString(),paras=extractArticle(html);if(!paras.length){await Safari.openInApp(url,false);return}let shown=paras;if(tr)shown=(await translatePT(paras.join("\n\n"))).split(/\n\n+/);const toggle=scriptURL({action:"reader",url,title:title||"",translate:tr?"0":"1"});const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;background:#0b0b0c;color:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#0b0b0cf5;border-bottom:1px solid #29292e}.bar a{color:#f0a21a;text-decoration:none;font-weight:800;font-size:13px;margin-right:18px}.wrap{max-width:760px;margin:auto;padding:22px 20px 60px}h1{font-size:30px;line-height:1.08}p{font-size:18px;line-height:1.62;color:#ddd}.note{font-size:12px;color:#777}</style></head><body><div class="bar"><a href="${esc(toggle)}">${tr?"ORIGINAL":"🇧🇷 TRADUZIR"}</a><a href="${esc(url)}">SITE ORIGINAL</a></div><div class="wrap"><div class="note">${tr?"Tradução automática para português":"Modo leitura"}</div><h1>${esc(title||"Matéria")}</h1>${shown.map(p=>`<p>${esc(p)}</p>`).join("")}</div></body></html>`;const w=new WebView();await w.loadHTML(page,url);await w.present(true)}
 const qp = args.queryParameters || {}
-const refreshRequested = qp.action === "refresh"\nif(qp.action==="reader"&&qp.url){try{await showReader(decodeURIComponent(qp.url),decodeURIComponent(qp.title||""),qp.translate==="1")}catch(e){log.warn("Falha no leitor/tradução",{erro:String(e)});const a=new Alert();a.title="Tradução indisponível";a.message="Não consegui traduzir esta matéria agora.";a.addAction("OK");await a.presentAlert()}Script.complete();return}
+const refreshRequested = qp.action === "refresh"
+if(qp.action==="reader"&&qp.url){
+  try{await showReader(decodeURIComponent(qp.url),decodeURIComponent(qp.title||""),qp.translate==="1")}
+  catch(e){log.warn("Falha no leitor/tradução",{erro:String(e)});const a=new Alert();a.title="Tradução indisponível";a.message="Não consegui traduzir esta matéria agora.";a.addAction("OK");await a.presentAlert()}
+  Script.complete();return
+}
 if (qp.action && qp.k) {
   const decodedKey = decodeURIComponent(qp.k)
   if (qp.action === "star") {
