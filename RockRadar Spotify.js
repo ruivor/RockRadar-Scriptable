@@ -14,7 +14,8 @@ async function sha256(data){
   slog("INFO","PKCE: iniciando SHA-256");
   const w=new WebView();
   const bytes=Array.from(data.getBytes());
-  const script="(async()=>{try{const b=new Uint8Array("+JSON.stringify(bytes)+");const h=await crypto.subtle.digest('SHA-256',b);const a=Array.from(new Uint8Array(h));completion(JSON.stringify({ok:true,bytes:a}));}catch(e){completion(JSON.stringify({ok:false,error:String(e)}));}})();";
+  await w.loadHTML("<html><body></body></html>");
+  const script="(async()=>{try{const b=new Uint8Array("+JSON.stringify(bytes)+");const h=await crypto.subtle.digest('SHA-256',b);const a=Array.from(new Uint8Array(h));completion(JSON.stringify({ok:true,bytes:a}));}catch(e){completion(JSON.stringify({ok:false,error:String(e)}));}})()";
   let result;
   try{result=await w.evaluateJavaScript(script,true)}catch(e){slog("ERROR","PKCE: WebView SHA-256 falhou",safeErr(e));throw e}
   slog("INFO","PKCE: retorno SHA-256 recebido",{type:typeof result,length:String(result||"").length});
