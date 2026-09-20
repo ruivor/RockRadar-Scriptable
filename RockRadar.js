@@ -1,5 +1,8 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
+const { createLogger } = importModule("logger")
+const log = createLogger("RockRadar.js")
+log.info("Inicialização")
 
 const fm = FileManager.iCloud()
 const base = fm.joinPath(fm.documentsDirectory(), "RockRadar")
@@ -15,6 +18,7 @@ async function load(n, fallback) {
     return fm.fileExists(x) ? JSON.parse(fm.readString(x)) : fallback
   } catch (e) {
     console.error(n, e)
+    log.error("Falha ao carregar JSON", {arquivo:n, erro:String(e)})
     return fallback
   }
 }
@@ -182,6 +186,7 @@ async function collect(s) {
     return []
   } catch (e) {
     console.error(s.name, e)
+    log.warn("Falha ao coletar fonte", {fonte:s.name, tipo:s.type, url:s.url, erro:String(e)})
     return []
   }
 }
@@ -230,6 +235,7 @@ let items = [...map.values()]
   .slice(0, 180)
 
 save("cache.json", {updatedAt:new Date().toISOString(), items})
+log.info("Coleta concluída", {itens:items.length, fontes:(cfg.sources||[]).filter(s=>s.enabled!==false).length})
 
 const catName = id => (cats.categories || []).find(c => c.id === id)?.name || id
 const enabledCats = (cats.categories || []).filter(c => c.enabled !== false)
@@ -436,5 +442,11 @@ applyFilter('personal','Para mim')
 
 const web = new WebView()
 await web.loadHTML(html)
-await web.present(true)
+try {
+  await web.present(true)
+  log.info("WebView encerrada normalmente")
+} catch (e) {
+  log.error("Falha ao apresentar WebView", {erro:String(e), stack:e.stack||""})
+  throw e
+}
 Script.complete()
