@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.11.1"
+const RADAR_VERSION = "2.11.2"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -18,28 +18,27 @@ const fm = FileManager.iCloud()
 const base = fm.joinPath(fm.documentsDirectory(), "RockRadar")
 if (!fm.fileExists(base)) fm.createDirectory(base, true)
 
-// Auto-reparo do sincronizador: baixa o Sync via RAW, sem usar a GitHub Contents API.
+// Bootstrap do sincronizador: consulta a versão remota e atualiza o Sync quando necessário.
+// Usa um único request à API para resolver o commit e baixa o arquivo por URL imutável.
 try {
-  const syncPath = fm.joinPath(fm.documentsDirectory(), "RockRadar Sync.js")
-  const localSync = fm.fileExists(syncPath) ? fm.readString(syncPath) : ""
-  const localSyncVersion = localSync.match(/const SYNC_VERSION=["']([^"']+)/)?.[1] || "0"
-  if (localSyncVersion !== "2.1.0") {
-    const req = new Request("https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main/RockRadar%20Sync.js?rr="+Date.now())
-    req.timeoutInterval = 15
-    req.headers = {"Cache-Control":"no-cache","Pragma":"no-cache"}
-    const fresh = await req.loadString()
-    const status = req.response && req.response.statusCode ? req.response.statusCode : 0
-    if (status >= 200 && status < 300 && fresh.includes('const SYNC_VERSION="2.1.0"')) {
-      fm.writeString(syncPath, fresh)
-      if (fm.readString(syncPath) !== fresh) throw new Error("Falha ao verificar Sync gravado")
-      log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.1.0"})
-    } else {
-      throw new Error("Sync remoto inválido; HTTP "+status)
+  const syncPath=fm.joinPath(fm.documentsDirectory(),"RockRadar Sync.js")
+  const localSync=fm.fileExists(syncPath)?fm.readString(syncPath):""
+  const localSyncVersion=localSync.match(/const SYNC_VERSION=["']([^"']+)/)?.[1]||"0"
+  const cr=new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/commits/main")
+  cr.timeoutInterval=15;cr.headers={"User-Agent":"RockRadar-Scriptable/"+RADAR_VERSION,"Accept":"application/vnd.github+json"}
+  const cd=await cr.loadJSON(),cs=cr.response&&cr.response.statusCode?cr.response.statusCode:0
+  if(cs>=200&&cs<300&&cd.sha){
+    const sr=new Request("https://cdn.jsdelivr.net/gh/ruivor/RockRadar-Scriptable@"+cd.sha+"/RockRadar%20Sync.js")
+    sr.timeoutInterval=15
+    const fresh=await sr.loadString(),ss=sr.response&&sr.response.statusCode?sr.response.statusCode:0
+    const remoteSyncVersion=fresh.match(/const SYNC_VERSION=["']([^"']+)/)?.[1]||"0"
+    if(ss>=200&&ss<300&&remoteSyncVersion!=="0"&&remoteSyncVersion!==localSyncVersion){
+      fm.writeString(syncPath,fresh)
+      if(fm.readString(syncPath)!==fresh)throw new Error("Falha ao verificar Sync gravado")
+      log.info("RockRadar Sync atualizado",{de:localSyncVersion,para:remoteSyncVersion})
     }
-  }
-} catch (e) {
-  log.warn("Não foi possível auto-reparar o Sync", {erro:String(e)})
-}
+  } else log.warn("Não foi possível consultar commit para atualizar Sync",{http:cs})
+} catch(e){log.warn("Não foi possível atualizar o Sync",{erro:String(e)})}
 const p = n => fm.joinPath(base, n)
 
 async function load(n, fallback) {
