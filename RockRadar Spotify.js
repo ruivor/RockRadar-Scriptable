@@ -41,7 +41,8 @@ function sha256Text(ascii){
       var wi=w[i]=i<16?w[i]:(((w[i-16]+s0)|0)+((w[i-7]+s1)|0))|0;
       var S1=rightRotate(e,6)^rightRotate(e,11)^rightRotate(e,25);
       var ch=(e&ff)^((~e)&g);
-      var temp1=(((h+S1)|0)+((ch+k[i])|0)+wi)|0;
+      var temp1=((h+S1)|0) + ((ch+k[i])|0) + wi;
+      temp1=temp1|0;
       var S0=rightRotate(a,2)^rightRotate(a,13)^rightRotate(a,22);
       var maj=(a&b)^(a&cc)^(b&cc);
       var temp2=(S0+maj)|0;
