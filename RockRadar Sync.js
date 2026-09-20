@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="2.1.1";
+const SYNC_VERSION="2.2.0";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -45,6 +45,16 @@ for(const name of files){
     if(name==="RockRadar.js" && !body.includes('const RADAR_VERSION = "'+manifest.rockRadar+'"')){
       const got=body.match(/const RADAR_VERSION\s*=\s*["']([^"']+)/)?.[1]||"desconhecida";
       throw new Error("GitHub API retornou RockRadar v"+got+", mas o manifesto pede v"+manifest.rockRadar);
+    }
+    // Validação estática antes de substituir scripts no iPhone.
+    if(name.endsWith(".js")){
+      const suspicious=body.split("\n").map((line,i)=>({line:i+1,text:line})).filter(x=>/\\n\s+(?:const|let|if|function|await|return)\b/.test(x.text));
+      if(suspicious.length){
+        const detail=suspicious.slice(0,5).map(x=>"linha "+x.line+": "+x.text.slice(0,140)).join(" | ");
+        syncLog("ERROR","VALIDAÇÃO BLOQUEOU "+name+" — escape literal suspeito: "+detail);
+        throw new Error("Validação de sintaxe detectou \\n literal suspeito em "+name+" ("+detail+")");
+      }
+      syncLog("INFO","Validação estática OK: "+name);
     }
     fm.writeString(dest,body);
     const check=fm.readString(dest);
