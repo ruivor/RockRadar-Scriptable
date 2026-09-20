@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.9.1"
+const RADAR_VERSION = "2.10.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -440,72 +440,48 @@ function scriptURL(params) {
   return baseURL + "?" + q
 }
 
+function primaryArtistFromTitle(title) {
+  const t=String(title||"").trim()
+  const patterns=[
+    /^([^:–—-]{2,60})\s+(?:premiere|premieres|release|releases|announce|announces|share|shares|unveil|unveils|debut|debuts)\b/i,
+    /^(.+?)\s*[-–—:]\s*(.+?)(?:\s*[\[(](?:album\s+)?review[\])]\s*)?$/i
+  ]
+  for(const re of patterns){const m=t.match(re);if(m)return m[1].trim().replace(/^(review|premiere)\s*:\s*/i,"")}
+  return ""
+}
 function spotifyHint(it) {
-  let artist = ((it.artists || [])[0] || "").trim()
-  let title = String(it.title || "").trim()
-  const review = title.match(/^(.+?)\s*[-–—:]\s*(.+?)(?:\s*[\[(](?:album\s+)?review[\])]\s*)?$/i)
-  if (!artist && review) artist = review[1].trim()
-  let release = review ? review[2].trim() : title
-  release = release.replace(/\s*[\[(](?:album\s+)?review[\])]\s*$/i, "").trim()
-  return {artist, release}
+  const title=String(it.title||"").trim()
+  const artist=primaryArtistFromTitle(title)
+  const split=title.match(/^(.+?)\s*[-–—:]\s*(.+)$/)
+  let release=split?split[2].trim():title
+  release=release.replace(/\s*[\[(](?:album\s+)?review[\])]\s*$/i,"").trim()
+  return {artist,release}
 }
 
 function cardHTML(it) {
-  const k = key(it)
-  const openURL = scriptURL({action:"open", k, url:it.url || ""})
-  const starURL = scriptURL({action:"star", k})
-  const spotifyArtist = ((it.artists || []).length ? it.artists[0] : "").trim()
-  const spotifyTitle = it.title.trim()
-  const spotifyURL = "scriptable:///run/RockRadar%20Spotify?action=add&artist=" + encodeURIComponent(spotifyArtist) + "&title=" + encodeURIComponent(spotifyTitle)
-  const spotifyAdded = Object.values(spotifyState.added || {}).some(x => {
-    const a = String(x.artist||"").toLowerCase(), n = String(x.name||"").toLowerCase()
-    return (spotifyArtist && a.includes(spotifyArtist.toLowerCase())) || n === spotifyTitle.toLowerCase()
-  })
-  const catsHTML = (it.categories || []).slice(0, 2)
-    .map(c => `<span class="badge category">${esc(catName(c))}</span>`).join("")
-  const tagHTML = (it.tags || []).slice(0, 3)
-    .map(t => `<span class="badge tag">#${esc(t)}</span>`).join("")
-  const artistHTML = (it.artists || []).length
-    ? `<div class="artists">${esc(it.artists.slice(0,2).join(" · "))}</div>`
-    : ""
-  const summary = it.summary
-    ? `<div class="summary">${esc(it.summary.slice(0, 190))}</div>`
-    : ""
-  const typeIcon = it.sourceType === "youtube" ? "▶" : "●"
-  const mediaURL = it.videoId
-    ? "https://i.ytimg.com/vi/" + it.videoId + "/maxresdefault.jpg"
-    : (it.image || "")
-  const mediaHTML = mediaURL
-    ? `<a class="media-link" href="${esc(openURL)}"><div class="media"><img loading="lazy" src="${esc(mediaURL)}" alt="" referrerpolicy="no-referrer" ${it.videoId ? `onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://i.ytimg.com/vi/${esc(it.videoId)}/hqdefault.jpg'}"` : ""}><span class="media-fallback">ROCK RADAR</span>${it.sourceType === "youtube" ? '<span class="play">▶</span>' : ""}</div></a>`
-    : ""
-
+  const k=key(it)
+  const openURL=scriptURL({action:"open",k,url:it.url||""})
+  const starURL=scriptURL({action:"star",k})
+  const hint=spotifyHint(it)
+  const primaryArtist=hint.artist
+  const spotifyURL="scriptable:///run/RockRadar%20Spotify?action=add&artist="+encodeURIComponent(primaryArtist)+"&title="+encodeURIComponent(hint.release)
+  const spotifyAdded=primaryArtist && Object.values(spotifyState.added||{}).some(x=>String(x.artist||"").toLowerCase()===primaryArtist.toLowerCase())
+  const catsHTML=(it.categories||[]).slice(0,2).map(c=>`<span class="badge category">${esc(catName(c))}</span>`).join("")
+  const tagHTML=(it.tags||[]).slice(0,3).map(t=>`<span class="badge tag">#${esc(t)}</span>`).join("")
+  const artistHTML=primaryArtist?`<div class="artists">${esc(primaryArtist)}</div>`:""
+  const summary=it.summary?`<div class="summary">${esc(it.summary.slice(0,190))}</div>`:""
+  const typeIcon=it.sourceType==="youtube"?"▶":"●"
+  const mediaURL=it.videoId?"https://i.ytimg.com/vi/"+it.videoId+"/maxresdefault.jpg":(it.image||"")
+  const mediaHTML=mediaURL?`<a class="media-link" href="${esc(openURL)}"><div class="media"><img loading="lazy" src="${esc(mediaURL)}" alt="" referrerpolicy="no-referrer"><span class="media-fallback">ROCK RADAR</span>${it.sourceType==="youtube"?'<span class="play">▶</span>':""}</div></a>`:""
   return `
-    <article class="card ${it.isRead ? "read" : ""}" data-cats="${esc((it.categories||[]).join(" "))}" data-score="${it.score||0}" data-starred="${it.isStarred ? "1":"0"}" data-personal="${personalKeys.has(k) ? "1":"0"}">
-      <div class="card-top">
-        <div class="source"><span class="source-dot">${typeIcon}</span>${esc(it.source)}</div>
-        <div class="date">${esc(relativeDate(it.date))}</div>
-      </div>
-
+    <article class="card ${it.isRead?"read":""}" data-cats="${esc((it.categories||[]).join(" "))}" data-score="${it.score||0}" data-starred="${it.isStarred?"1":"0"}" data-personal="${personalKeys.has(k)?"1":"0"}">
+      <div class="card-top"><div class="source"><span class="source-dot">${typeIcon}</span>${esc(it.source)}</div><div class="date">${esc(relativeDate(it.date))}</div></div>
       ${mediaHTML}
-
-      <a class="title-link" href="${esc(openURL)}">
-        <h2>${esc(it.title)}</h2>
-      </a>
-
-      ${artistHTML}
-      ${summary}
-
-      <div class="badges">
-        ${catsHTML}
-        ${tagHTML}
-      </div>
-
-      <div class="card-bottom">
-        <span class="score">Afinidade ${Math.max(0, Math.round(it.score || 0))}</span>
-        <div class="card-actions"><a class="spotify-add ${spotifyAdded ? "added":""}" href="${esc(spotifyURL)}">${spotifyAdded ? "✓ NO SPOTIFY" : "＋ SPOTIFY"}</a><a class="star" href="${esc(starURL)}">${it.isStarred ? "★" : "☆"}</a></div>
-      </div>
-    </article>
-  `
+      <a class="title-link" href="${esc(openURL)}"><h2>${esc(it.title)}</h2></a>
+      ${artistHTML}${summary}
+      <div class="badges">${catsHTML}${tagHTML}</div>
+      <div class="card-bottom"><span class="score">Afinidade ${Math.max(0,Math.round(it.score||0))}</span><div class="card-actions"><a class="spotify-add ${spotifyAdded?"added":""}" href="${esc(spotifyURL)}">${spotifyAdded?"✓ NO SPOTIFY":"＋ SPOTIFY"}</a><a class="star" href="${esc(starURL)}">${it.isStarred?"★":"☆"}</a></div></div>
+    </article>`
 }
 
 const totalUnread = items.filter(i => !i.isRead).length
