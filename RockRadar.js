@@ -18,23 +18,27 @@ const fm = FileManager.iCloud()
 const base = fm.joinPath(fm.documentsDirectory(), "RockRadar")
 if (!fm.fileExists(base)) fm.createDirectory(base, true)
 
-// Auto-reparo do sincronizador: o Radar pode atualizar apenas o RockRadar Sync.js.
-// Usa GitHub Contents API para não depender do cache do CDN.
+// Auto-reparo do sincronizador: usa resposta RAW da API do GitHub, sem Base64/CDN.
 try {
   const syncPath = fm.joinPath(fm.documentsDirectory(), "RockRadar Sync.js")
-  let localSync = fm.fileExists(syncPath) ? fm.readString(syncPath) : ""
+  const localSync = fm.fileExists(syncPath) ? fm.readString(syncPath) : ""
   const localSyncVersion = localSync.match(/const SYNC_VERSION=["']([^"']+)/)?.[1] || "0"
   if (localSyncVersion !== "2.0.4") {
     const req = new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/RockRadar%20Sync.js?ref=main")
     req.timeoutInterval = 15
-    req.headers = {"User-Agent":"RockRadar-Scriptable/"+RADAR_VERSION,"Cache-Control":"no-cache"}
-    const body = await req.loadJSON()
-    if (body && body.content) {
-      const fresh = Data.fromBase64String(String(body.content).replace(/\\n/g,"")).toRawString()
-      if (fresh.includes('const SYNC_VERSION="2.0.4"')) {
-        fm.writeString(syncPath, fresh)
-        log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.0.4"})
-      }
+    req.headers = {
+      "User-Agent":"RockRadar-Scriptable/"+RADAR_VERSION,
+      "Accept":"application/vnd.github.raw+json",
+      "Cache-Control":"no-cache"
+    }
+    const fresh = await req.loadString()
+    const status = req.response && req.response.statusCode ? req.response.statusCode : 0
+    if (status >= 200 && status < 300 && fresh.includes('const SYNC_VERSION="2.0.4"')) {
+      fm.writeString(syncPath, fresh)
+      if (fm.readString(syncPath) !== fresh) throw new Error("Falha ao verificar Sync gravado")
+      log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.0.4"})
+    } else {
+      throw new Error("Sync remoto inválido; HTTP "+status)
     }
   }
 } catch (e) {
