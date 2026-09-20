@@ -1,6 +1,6 @@
 // RockRadar Spotify.js
 // OAuth Spotify Authorization Code + PKCE. Segredos/tokens ficam somente no Keychain do iPhone.
-const SPOTIFY_VERSION="1.0.2";
+const SPOTIFY_VERSION="1.1.0";
 let logger=null;
 try{logger=importModule("logger").createLogger("RockRadar Spotify.js")}catch{}
 function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[level.toLowerCase()](msg,meta)}catch{} try{console.log("["+level+"] "+msg+(meta?" "+JSON.stringify(meta):""))}catch{}}
@@ -8,8 +8,8 @@ function safeErr(e){return {name:(e&&e.name)||"Error",message:String((e&&e.messa
 slog("INFO","Inicializando Spotify PKCE");
 const CLIENT_ID="2c3cf76b21ce46c09487907fe4fa2de7";
 const REDIRECT_URI="https://aeternare-spotify-callback-production.up.railway.app/spotify/callback";
-const SCOPE="playlist-modify-private";
-const K={verifier:"rockradar.spotify.verifier",state:"rockradar.spotify.state",access:"rockradar.spotify.access",refresh:"rockradar.spotify.refresh",expires:"rockradar.spotify.expires",playlist:"rockradar.spotify.playlist"};
+const SCOPE="playlist-modify-private playlist-read-private";
+const K={verifier:"rockradar.spotify.v2.verifier",state:"rockradar.spotify.v2.state",access:"rockradar.spotify.v2.access",refresh:"rockradar.spotify.v2.refresh",expires:"rockradar.spotify.v2.expires",playlist:"rockradar.spotify.playlist"};
 function b64url(data){return data.toBase64String().replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_")}
 function sha256Bytes(ascii){
   var rightRotate=function(value,amount){return (value>>>amount)|(value<<(32-amount));};
@@ -97,17 +97,37 @@ async function api(path,method="GET",body=null){
 }
 async function playlist(){
  if(Keychain.contains(K.playlist))return Keychain.get(K.playlist);
- const me=await api("/me");const p=await api("/users/"+encodeURIComponent(me.id)+"/playlists","POST",{name:"Rock Radar — Descobertas",description:"Descobertas do Rock Radar para ouvir depois.",public:false});
+ const p=await api("/me/playlists","POST",{name:"Rock Radar — Descobertas",description:"Descobertas do Rock Radar para ouvir depois.",public:false});
  Keychain.set(K.playlist,p.id);return p.id;
 }
-async function addDiscovery(query){
- const s=await api("/search?"+qs({q:query,type:"track",limit:"1"}));const tr=s.tracks&&s.tracks.items&&s.tracks.items[0];if(!tr)throw new Error("Nenhuma música encontrada para "+query);
- const id=await playlist();await api("/playlists/"+id+"/tracks","POST",{uris:[tr.uri]});return tr;
+function normText(x){return String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
+function scoreTrack(tr,artist,title){
+ const a=normText(artist),t=normText(title),ta=normText((tr.artists||[]).map(x=>x.name).join(" ")),tt=normText(tr.name);let score=0;
+ if(a&&ta===a)score+=60;else if(a&&(ta.includes(a)||a.includes(ta)))score+=40;
+ for(const w of t.split(" ").filter(x=>x.length>2))if(tt.includes(w))score+=5;
+ if(t&&tt===t)score+=35;return score;
+}
+async function inPlaylist(id,uri){
+ for(let offset=0;offset<500;offset+=50){
+  const page=await api("/playlists/"+id+"/items?"+qs({limit:"50",offset:String(offset)}));
+  const list=page.items||[];
+  if(list.some(x=>{const it=x.item||x.track;return it&&it.uri===uri}))return true;
+  if(!page.next||list.length<50)break;
+ }return false;
+}
+function saveAdded(tr){
+ try{const fm=FileManager.iCloud(),dir=fm.joinPath(fm.documentsDirectory(),"RockRadar");if(!fm.fileExists(dir))fm.createDirectory(dir,true);const path=fm.joinPath(dir,"spotify-state.json");let st={added:{}};try{if(fm.fileExists(path))st=JSON.parse(fm.readString(path))}catch{}if(!st.added)st.added={};st.added[tr.uri]={name:tr.name,artist:(tr.artists||[]).map(x=>x.name).join(", "),at:new Date().toISOString()};fm.writeString(path,JSON.stringify(st,null,2))}catch(e){slog("WARN","Estado local Spotify não foi salvo")}
+}
+async function addDiscovery(artist,title){
+ const query=[artist,title].filter(Boolean).join(" ");const s=await api("/search?"+qs({q:query,type:"track",limit:"5"}));const list=s.tracks&&s.tracks.items||[];if(!list.length)throw new Error("Nenhuma música encontrada para "+query);
+ const tr=list.map(x=>({x,score:scoreTrack(x,artist,title)})).sort((a,b)=>b.score-a.score)[0].x;const id=await playlist();
+ if(await inPlaylist(id,tr.uri)){saveAdded(tr);return {track:tr,duplicate:true}}
+ await api("/playlists/"+id+"/items","POST",{uris:[tr.uri]});saveAdded(tr);return {track:tr,duplicate:false};
 }
 const q=args.queryParameters||{};
 try{
  if(await callback(q)){const a=new Alert();a.title="Spotify conectado";a.message="Rock Radar já pode usar sua playlist privada de descobertas.";a.addAction("OK");await a.presentAlert();}
- else if(q.action==="add"&&q.q){let t=await access();if(!t){await beginAuth()}else{const tr=await addDiscovery(q.q);const a=new Alert();a.title="Adicionado às Descobertas";a.message=(tr.artists||[]).map(x=>x.name).join(", ")+" — "+tr.name;a.addAction("OK");await a.presentAlert();}}
+ else if(q.action==="add"&&q.q){let t=await access();if(!t){await beginAuth()}else{const result=await addDiscovery(q.artist||"",q.title||q.q);const tr=result.track;const a=new Alert();a.title=result.duplicate?"Já está na playlist":"Adicionado às Descobertas";a.message=(tr.artists||[]).map(x=>x.name).join(", ")+" — "+tr.name;a.addAction("OK");await a.presentAlert();}}
  else if(!(await access())) await beginAuth();
  else {const id=await playlist();const a=new Alert();a.title="Rock Radar Spotify";a.message="Conectado. Playlist Rock Radar — Descobertas pronta.\n\nID: "+id;a.addAction("OK");await a.presentAlert();}
 }catch(e){slog("ERROR","Falha no Spotify",safeErr(e));const a=new Alert();a.title="Rock Radar Spotify";a.message=String(e).includes("NOT_AUTH")?"É preciso conectar sua conta Spotify.":String(e);a.addAction("OK");await a.presentAlert();}
