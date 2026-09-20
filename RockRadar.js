@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.13.0"
+const RADAR_VERSION = "2.14.0"
 let log
 try {
   const { createLogger } = importModule("logger")
@@ -330,33 +330,46 @@ function extractArticle(html){
   }
   return best
 }
-function splitTranslationSegments(text){
-  const maxBytes=430,out=[];let cur=""
-  const sentences=String(text||"").split(/(?<=[.!?])\s+|\n+/)
-  const bytes=s=>encodeURIComponent(s).replace(/%[0-9A-F]{2}|./g,"x").length
-  for(let s of sentences){s=s.trim();if(!s)continue
-    while(bytes(s)>maxBytes){let cut=Math.min(350,s.length);while(cut>80&&bytes(s.slice(0,cut))>maxBytes)cut-=20;const p=s.lastIndexOf(" ",cut);if(p>80)cut=p;out.push(s.slice(0,cut).trim());s=s.slice(cut).trim()}
-    if(!cur){cur=s;continue}
-    if(bytes(cur+" "+s)<=maxBytes)cur+=" "+s;else{out.push(cur);cur=s}
-  }
-  if(cur)out.push(cur);return out
+const OPENAI_KEY_NAME="RockRadar.OpenAIAPIKey"
+const OPENAI_MODEL="gpt-5.6-luna"
+function translationCachePath(url){let h=2166136261;for(const ch of String(url||"")){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return fm.joinPath(base,"translation-"+(h>>>0).toString(16)+".json")}
+function getOpenAIKey(){
+  if(Keychain.contains(OPENAI_KEY_NAME))return Keychain.get(OPENAI_KEY_NAME)
+  return ""
 }
-async function translatePT(paras){
-  const started=Date.now(),segments=splitTranslationSegments(paras.join("\n"))
-  log.info("Tradução MyMemory iniciada",{paragrafos:paras.length,segmentos:segments.length,caracteres:paras.join("\n").length})
-  const out=[]
-  for(let i=0;i<segments.length;i++){
-    const q=segments[i],url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(q)+"&langpair=en%7Cpt-BR"
-    const r=new Request(url);r.timeoutInterval=15
-    try{
-      const d=await r.loadJSON(),status=r.response&&r.response.statusCode||0
-      const translated=d&&d.responseData&&d.responseData.translatedText
-      log.info("Tradução segmento",{n:i+1,total:segments.length,http:status,chars:q.length,match:d&&d.responseData&&d.responseData.match,ms:Date.now()-started})
-      if(!translated||status>=400)throw new Error((d&&d.responseDetails)||"Resposta de tradução inválida")
-      out.push(translated)
-    }catch(e){log.error("Tradução segmento falhou",{n:i+1,total:segments.length,erro:String(e),message:e&&e.message||"",ms:Date.now()-started});throw e}
-  }
-  log.info("Tradução MyMemory concluída",{segmentos:segments.length,ms:Date.now()-started})
+async function requestOpenAIKey(){
+  const a=new Alert();a.title="Configurar tradução GPT";a.message="Cole sua chave da OpenAI API. Ela será salva somente no Keychain do iPhone e nunca no GitHub.";a.addTextField("sk-...","");a.addAction("Salvar chave");a.addCancelAction("Cancelar")
+  const ix=await a.presentAlert();if(ix<0)return ""
+  const key=String(a.textFieldValue(0)||"").trim()
+  if(!key.startsWith("sk-"))throw new Error("A chave da OpenAI API não parece válida.")
+  Keychain.set(OPENAI_KEY_NAME,key);log.info("Chave OpenAI salva no Keychain",{nome:OPENAI_KEY_NAME});return key
+}
+function responseText(d){
+  if(d&&typeof d.output_text==="string"&&d.output_text.trim())return d.output_text.trim()
+  const out=d&&d.output||[];let s=""
+  for(const item of out)for(const part of item.content||[])if(part.type==="output_text"&&part.text)s+=part.text
+  return s.trim()
+}
+async function translatePT(paras,url,title){
+  const cache=translationCachePath(url)
+  if(fm.fileExists(cache)){try{const d=JSON.parse(fm.readString(cache));if(d.model===OPENAI_MODEL&&Array.isArray(d.paras)&&d.paras.length){log.info("Tradução GPT carregada do cache",{url,paragrafos:d.paras.length});return d.paras}}catch(e){log.warn("Cache de tradução inválido",{erro:String(e)})}}
+  let key=getOpenAIKey();if(!key)key=await requestOpenAIKey();if(!key)throw new Error("Tradução cancelada: chave da OpenAI API não configurada.")
+  const started=Date.now(),source=paras.join("\n\n")
+  log.info("Tradução GPT iniciada",{modelo:OPENAI_MODEL,url,paragrafos:paras.length,caracteres:source.length})
+  const prompt="Traduza integralmente a matéria abaixo para português do Brasil natural e fiel. Preserve nomes de bandas, artistas, álbuns, músicas, gravadoras e festivais. Preserve perguntas e respostas e a ordem do texto. Não resuma, não acrescente comentários e não use Markdown. Separe os parágrafos com uma linha em branco.\n\nTÍTULO: "+String(title||"")+"\n\nMATÉRIA:\n"+source
+  const r=new Request("https://api.openai.com/v1/responses");r.method="POST";r.timeoutInterval=90;r.headers={"Authorization":"Bearer "+key,"Content-Type":"application/json"}
+  r.body=JSON.stringify({model:OPENAI_MODEL,input:prompt,reasoning:{effort:"none"},text:{verbosity:"low"}})
+  let d
+  try{d=await r.loadJSON()}catch(e){log.error("Tradução GPT: falha de rede/JSON",{erro:String(e),message:e&&e.message||"",ms:Date.now()-started});throw e}
+  const status=r.response&&r.response.statusCode||0
+  if(status>=400||d.error){const msg=d&&d.error&&d.error.message||("OpenAI HTTP "+status);log.error("Tradução GPT rejeitada",{http:status,erro:msg,modelo:OPENAI_MODEL,ms:Date.now()-started});throw new Error(msg)}
+  const translated=responseText(d)
+  if(!translated)throw new Error("A OpenAI não retornou texto traduzido.")
+  const out=translated.split(/\n\s*\n+/).map(x=>x.trim()).filter(Boolean)
+  const usage=d.usage||{}
+  log.info("Tradução GPT concluída",{modelo:OPENAI_MODEL,http:status,paragrafos:out.length,inputTokens:usage.input_tokens||0,outputTokens:usage.output_tokens||0,totalTokens:usage.total_tokens||0,ms:Date.now()-started})
+  fm.writeString(cache,JSON.stringify({url,title:title||"",model:OPENAI_MODEL,createdAt:new Date().toISOString(),usage,paras:out}))
+  log.info("Tradução GPT salva no cache",{arquivo:cache,paragrafos:out.length})
   return out
 }
 async function loadArticle(url){
@@ -376,9 +389,9 @@ async function showReader(url,title,tr){
   log.info("Reader: extração concluída",{paragrafos:paras.length,caracteres:paras.reduce((n,p)=>n+p.length,0),ms:Date.now()-started})
   if(!paras.length){log.warn("Reader: nenhum parágrafo extraído; abrindo original",{url,ms:Date.now()-started});await Safari.openInApp(url,false);return}
   let shown=paras
-  if(tr){shown=await translatePT(paras);log.info("Reader: tradução pronta",{paragrafos:shown.length,ms:Date.now()-started})}
+  if(tr){shown=await translatePT(paras,url,title);log.info("Reader: tradução pronta",{paragrafos:shown.length,ms:Date.now()-started})}
   const toggle=scriptURL({action:"reader",url,title:title||"",translate:tr?"0":"1"})
-  const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;background:#0b0b0c;color:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#0b0b0cf5;border-bottom:1px solid #29292e}.bar a{color:#f0a21a;text-decoration:none;font-weight:800;font-size:13px;margin-right:18px}.wrap{max-width:760px;margin:auto;padding:22px 20px 60px}h1{font-size:30px;line-height:1.08}p{font-size:18px;line-height:1.62;color:#ddd}.note{font-size:12px;color:#777}</style></head><body><div class="bar"><a href="${esc(toggle)}">${tr?"ORIGINAL":"🇧🇷 TRADUZIR"}</a><a href="${esc(url)}">SITE ORIGINAL</a></div><div class="wrap"><div class="note">${tr?"Tradução automática · MyMemory":"Modo leitura"}</div><h1>${esc(title||"Matéria")}</h1>${shown.map(p=>`<p>${esc(p)}</p>`).join("")}</div></body></html>`
+  const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;background:#0b0b0c;color:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#0b0b0cf5;border-bottom:1px solid #29292e}.bar a{color:#f0a21a;text-decoration:none;font-weight:800;font-size:13px;margin-right:18px}.wrap{max-width:760px;margin:auto;padding:22px 20px 60px}h1{font-size:30px;line-height:1.08}p{font-size:18px;line-height:1.62;color:#ddd}.note{font-size:12px;color:#777}</style></head><body><div class="bar"><a href="${esc(toggle)}">${tr?"ORIGINAL":"🇧🇷 TRADUZIR"}</a><a href="${esc(url)}">SITE ORIGINAL</a></div><div class="wrap"><div class="note">${tr?"Tradução por GPT-5.6 Luna · cache local":"Modo leitura"}</div><h1>${esc(title||"Matéria")}</h1>${shown.map(p=>`<p>${esc(p)}</p>`).join("")}</div></body></html>`
   const w=new WebView();log.info("Reader: carregando HTML local",{ms:Date.now()-started});await w.loadHTML(page,url);log.info("Reader: apresentando WebView",{ms:Date.now()-started});await w.present(true);log.info("Reader: WebView fechado",{ms:Date.now()-started})
 }
 const qp = args.queryParameters || {}
