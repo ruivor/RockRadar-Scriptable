@@ -1,6 +1,6 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const RADAR_VERSION = "2.9.0"
+const RADAR_VERSION = "2.9.1"
 let log
 try {
   const { createLogger } = importModule("logger")
