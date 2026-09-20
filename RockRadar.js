@@ -1,7 +1,16 @@
 // RockRadar.js — Scriptable
 // UI WebView v2
-const { createLogger } = importModule("logger")
-const log = createLogger("RockRadar.js")
+let log
+try {
+  const { createLogger } = importModule("logger")
+  log = createLogger("RockRadar.js")
+} catch (e) {
+  log = {
+    info:(m,x)=>console.log("[INFO] "+m+(x?" "+JSON.stringify(x):"")),
+    warn:(m,x)=>console.warn("[WARN] "+m+(x?" "+JSON.stringify(x):"")),
+    error:(m,x)=>console.error("[ERROR] "+m+(x?" "+JSON.stringify(x):""))
+  }
+}
 log.info("Inicialização")
 
 const fm = FileManager.iCloud()
