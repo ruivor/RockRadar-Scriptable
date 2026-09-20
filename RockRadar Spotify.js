@@ -1,6 +1,6 @@
 // RockRadar Spotify.js
 // OAuth Spotify Authorization Code + PKCE. Segredos/tokens ficam somente no Keychain do iPhone.
-const SPOTIFY_VERSION="1.2.0";
+const SPOTIFY_VERSION="1.3.0";
 let logger=null;
 try{logger=importModule("logger").createLogger("RockRadar Spotify.js")}catch{}
 function slog(level,msg,meta){try{logger&&logger[level.toLowerCase()]&&logger[level.toLowerCase()](msg,meta)}catch{} try{console.log("["+level+"] "+msg+(meta?" "+JSON.stringify(meta):""))}catch{}}
@@ -119,15 +119,17 @@ function saveAdded(tr){
  try{const fm=FileManager.iCloud(),dir=fm.joinPath(fm.documentsDirectory(),"RockRadar");if(!fm.fileExists(dir))fm.createDirectory(dir,true);const path=fm.joinPath(dir,"spotify-state.json");let st={added:{}};try{if(fm.fileExists(path))st=JSON.parse(fm.readString(path))}catch{}if(!st.added)st.added={};st.added[tr.uri]={name:tr.name,artist:(tr.artists||[]).map(x=>x.name).join(", "),at:new Date().toISOString()};fm.writeString(path,JSON.stringify(st,null,2))}catch(e){slog("WARN","Estado local Spotify não foi salvo")}
 }
 async function addDiscovery(artist,title){
- artist=String(artist||"").trim();title=String(title||"").trim();
- if(!artist)throw new Error("Não consegui identificar o artista com segurança. Nenhuma música foi adicionada.");
- const s=await api("/search?"+qs({q:"artist:"+artist+" "+title,type:"track",limit:"10"}));
- const list=s.tracks&&s.tracks.items||[];
- if(!list.length)throw new Error("Não encontrei uma faixa confiável de "+artist+". Nenhuma música foi adicionada.");
- const ranked=list.map(x=>({x,score:scoreTrack(x,artist,title)})).sort((a,b)=>b.score-a.score),best=ranked[0];
- const actual=normText((best.x.artists||[]).map(x=>x.name).join(" ")),wanted=normText(artist);
- if(!(actual===wanted||actual.includes(wanted))||best.score<40)throw new Error("Resultado do Spotify com baixa confiança para "+artist+". Nenhuma música foi adicionada.");
- const tr=best.x,id=await playlist();
+ artist=String(artist||"").trim();
+ if(!artist)throw new Error("Não consegui identificar a banda. Nenhuma música foi adicionada.");
+ const found=await api("/search?"+qs({q:artist,type:"artist",limit:"5"}));
+ const artists=found.artists&&found.artists.items||[];
+ const wanted=normText(artist);
+ const ar=artists.find(x=>normText(x.name)===wanted);
+ if(!ar)throw new Error("Não consegui confirmar a banda "+artist+" no Spotify. Nenhuma música foi adicionada.");
+ const top=await api("/artists/"+ar.id+"/top-tracks");
+ const tracks=(top.tracks||[]).filter(x=>(x.artists||[]).some(y=>y.id===ar.id));
+ if(!tracks.length)throw new Error("O Spotify não retornou músicas populares de "+ar.name+".");
+ const tr=tracks[0],id=await playlist();
  if(await inPlaylist(id,tr.uri)){saveAdded(tr);return {track:tr,duplicate:true}}
  await api("/playlists/"+id+"/items","POST",{uris:[tr.uri]});saveAdded(tr);return {track:tr,duplicate:false};
 }
