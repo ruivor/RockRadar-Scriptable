@@ -28,15 +28,15 @@ const old = await load("cache.json", {items:[]})
 const cutoff = Date.now() - 45 * 86400000
 
 const clean = s => (s || "")
-  .replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1")
-  .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-  .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+  .replace(/<script[\s\S]*?<\/script>/gi, " ")
+  .replace(/<style[\s\S]*?<\/style>/gi, " ")
   .replace(/<[^>]+>/g, " ")
   .replace(/&nbsp;/g, " ")
   .replace(/&amp;/g, "&")
   .replace(/&quot;/g, '"')
   .replace(/&#39;|&apos;/g, "'")
-  .replace(/\\s+/g, " ")
+  .replace(/\s+/g, " ")
   .trim()
 
 const key = i => `${i.sourceId}|${i.url || i.title}`.toLowerCase()
@@ -122,11 +122,11 @@ function norm(x) {
 }
 
 function feed(xml, s) {
-  const blocks = xml.match(/<item\\b[\\s\\S]*?<\\/item>|<entry\\b[\\s\\S]*?<\\/entry>/gi) || []
+  const blocks = xml.match(/<item\b[\s\S]*?<\/item>|<entry\b[\s\S]*?<\/entry>/gi) || []
   return blocks.slice(0, 20).map(b => {
     let u = tag(b, ["link","guid"])
     if (!/^https?:/i.test(u)) {
-      const m = b.match(/<link\\b[^>]*href=["']([^"']+)["']/i)
+      const m = b.match(/<link\b[^>]*href=["']([^"']+)["']/i)
       if (m) u = m[1]
     }
     return norm({
@@ -145,7 +145,7 @@ function feed(xml, s) {
 
 async function youtube(s) {
   let html = await get(s.url), id = ""
-  for (const re of [/"channelId":"(UC[^"]+)"/,/"externalId":"(UC[^"]+)"/,/youtube\\.com\\/channel\\/(UC[\\w-]+)/]) {
+  for (const re of [/"channelId":"(UC[^"]+)"/,/"externalId":"(UC[^"]+)"/,/youtube\.com\/channel\/(UC[\w-]+)/]) {
     const m = html.match(re)
     if (m) { id = m[1]; break }
   }
@@ -156,12 +156,12 @@ async function youtube(s) {
 function htmlItems(html, s) {
   const out = [], seen = new Set()
   let m
-  const re = /<a\\b[^>]*href=["']([^"'#]+)["'][^>]*>([\\s\\S]*?)<\\/a>/gi
+  const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi
   while ((m = re.exec(html)) && out.length < 20) {
     const t = clean(m[2])
     if (t.length < 18 || t.length > 180) continue
     let u = m[1]
-    if (u.startsWith("/")) u = (s.site || s.url).match(/^(https?:\\/\\/[^\\/]+)/)?.[1] + u
+    if (u.startsWith("/")) u = (s.site || s.url).match(/^(https?:\/\/[^\/]+)/)?.[1] + u
     if (!/^https?:/i.test(u) || seen.has(u)) continue
     seen.add(u)
     out.push(norm({
