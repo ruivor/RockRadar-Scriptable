@@ -24,16 +24,16 @@ try {
   const syncPath = fm.joinPath(fm.documentsDirectory(), "RockRadar Sync.js")
   let localSync = fm.fileExists(syncPath) ? fm.readString(syncPath) : ""
   const localSyncVersion = localSync.match(/const SYNC_VERSION=["']([^"']+)/)?.[1] || "0"
-  if (localSyncVersion !== "2.0.1") {
-    const req = new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/RockRadar%20Sync.js?ref=main&t="+Date.now())
+  if (localSyncVersion !== "2.0.2") {
+    const req = new Request("https://api.github.com/repos/ruivor/RockRadar-Scriptable/contents/RockRadar%20Sync.js?ref=main")
     req.timeoutInterval = 15
     req.headers = {"User-Agent":"RockRadar-Scriptable/"+RADAR_VERSION,"Cache-Control":"no-cache"}
     const body = await req.loadJSON()
     if (body && body.content) {
       const fresh = Data.fromBase64String(String(body.content).replace(/\\n/g,"")).toRawString()
-      if (fresh.includes('const SYNC_VERSION="2.0.1"')) {
+      if (fresh.includes('const SYNC_VERSION="2.0.2"')) {
         fm.writeString(syncPath, fresh)
-        log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.0.1"})
+        log.info("RockRadar Sync auto-reparado", {de:localSyncVersion, para:"2.0.2"})
       }
     }
   }
