@@ -1,6 +1,6 @@
 // RockRadar Sync.js
 // Sincronizador auto-versionado: version.json é a fonte única de versão.
-const SYNC_VERSION="1.7.0";
+const SYNC_VERSION="1.7.1";
 const RAW_BASE="https://raw.githubusercontent.com/ruivor/RockRadar-Scriptable/main";
 const files=["RockRadar.js","sources.json","categories.json","watched-artists.json","RockRadar Widget.js","logger.js","RockRadar Logs.js","RockRadar Spotify.js","version.json"];
 const fm=FileManager.iCloud(),docs=fm.documentsDirectory(),dir=fm.joinPath(docs,"RockRadar");
@@ -62,9 +62,14 @@ try{
 let localSpotify="desconhecida";
 try{
   const sp=fm.readString(fm.joinPath(docs,"RockRadar Spotify.js"));
-  const sm=sp.match(/const SPOTIFY_VERSION\\s*=\\s*["']([^"']+)/);
-  if(sm) localSpotify=sm[1];
-}catch{}
+  const marker='const SPOTIFY_VERSION="';
+  const p=sp.indexOf(marker);
+  if(p>=0){
+    const rest=sp.slice(p+marker.length);
+    const q=rest.indexOf('"');
+    if(q>=0)localSpotify=rest.slice(0,q);
+  }
+}catch(e){syncLog("ERROR","Falha ao detectar versão local do Spotify: "+e)}
 const matched=localRadar===String(manifest.rockRadar);
 const spotifyMatched=!manifest.spotify||localSpotify===String(manifest.spotify);
 syncLog(matched?"INFO":"ERROR","Versão local "+localRadar+" / remota "+manifest.rockRadar);
